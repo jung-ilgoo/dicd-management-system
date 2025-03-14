@@ -11,7 +11,7 @@ from backend.routers import specs
 from backend.routers import statistics
 from backend.routers import spc as spc_router
 from backend.routers import reports
-
+from backend.routers import equipments as equipments_router
 
 
 # 데이터베이스 테이블 생성
@@ -40,6 +40,7 @@ app.include_router(specs.router)
 app.include_router(statistics.router)
 app.include_router(spc_router.router)
 app.include_router(reports.router)
+app.include_router(equipments_router.router)
 
 @app.get("/")
 async def root():

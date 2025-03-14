@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from . import models
-from ..schemas import product_group, process, target, measurement, spec
+from ..schemas import product_group, process, target, measurement, spec, equipment
 import statistics
 from datetime import datetime, timedelta
 
@@ -353,6 +353,50 @@ def delete_spec(db: Session, spec_id: int):
     db_spec = db.query(models.Spec).filter(models.Spec.id == spec_id).first()
     if db_spec:
         db.delete(db_spec)
+        db.commit()
+        return True
+    return False
+
+# 장비 CRUD 함수
+def get_equipments(db: Session, type: str = None, skip: int = 0, limit: int = 100):
+    query = db.query(models.Equipment)
+    
+    if type:
+        query = query.filter(models.Equipment.type == type)
+    
+    return query.offset(skip).limit(limit).all()
+
+def get_equipment(db: Session, equipment_id: int):
+    return db.query(models.Equipment).filter(models.Equipment.id == equipment_id).first()
+
+def create_equipment(db: Session, equipment: equipment.EquipmentCreate):
+    db_equipment = models.Equipment(
+        name=equipment.name,
+        type=equipment.type,
+        description=equipment.description,
+        is_active=equipment.is_active
+    )
+    db.add(db_equipment)
+    db.commit()
+    db.refresh(db_equipment)
+    return db_equipment
+
+def update_equipment(db: Session, equipment_id: int, equipment: equipment.EquipmentCreate):
+    db_equipment = db.query(models.Equipment).filter(models.Equipment.id == equipment_id).first()
+    
+    if db_equipment:
+        for key, value in equipment.dict(exclude_unset=True).items():
+            setattr(db_equipment, key, value)
+        
+        db.commit()
+        db.refresh(db_equipment)
+    
+    return db_equipment
+
+def delete_equipment(db: Session, equipment_id: int):
+    db_equipment = db.query(models.Equipment).filter(models.Equipment.id == equipment_id).first()
+    if db_equipment:
+        db.delete(db_equipment)
         db.commit()
         return True
     return False
