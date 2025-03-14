@@ -5,7 +5,10 @@ import statistics
 
 class MeasurementCreate(BaseModel):
     target_id: int
-    equipment_id: Optional[int] = None
+    # equipment_id 대신 세 개의 장비 ID로 변경
+    coating_equipment_id: Optional[int] = None
+    exposure_equipment_id: Optional[int] = None
+    development_equipment_id: Optional[int] = None
     device: str
     lot_no: str
     wafer_no: str
@@ -38,7 +41,10 @@ class MeasurementCreate(BaseModel):
 class Measurement(BaseModel):
     id: int
     target_id: int
-    equipment_id: Optional[int] = None
+    # equipment_id 대신 세 개의 장비 ID로 변경
+    coating_equipment_id: Optional[int] = None
+    exposure_equipment_id: Optional[int] = None
+    development_equipment_id: Optional[int] = None
     device: str
     lot_no: str
     wafer_no: str

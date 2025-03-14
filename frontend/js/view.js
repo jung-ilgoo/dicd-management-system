@@ -133,7 +133,7 @@
         }
     }
     
-    // 필터 파라미터 수집
+    // 필터 파라미터 수집 함수 수정
     function getFilterParams() {
         const productGroupId = document.getElementById('product-group').value;
         const processId = document.getElementById('process').value;
@@ -151,7 +151,11 @@
         if (productGroupId) params.product_group_id = productGroupId;
         if (processId) params.process_id = processId;
         if (targetId) params.target_id = targetId;
+        
+        // 장비 선택 시, 세 가지 장비 타입 중 어느 것으로 필터링할지 선택 가능
+        // (백엔드는 OR 조건으로 처리)
         if (equipmentId) params.equipment_id = equipmentId;
+        
         if (keyword) params.keyword = keyword;
         if (startDate) params.start_date = startDate;
         if (endDate) params.end_date = endDate;
@@ -159,7 +163,7 @@
         return params;
     }
     
-    // 테이블 업데이트
+    // 테이블 업데이트 함수 내 장비 정보 부분 수정
     async function updateDataTable(measurements) {
         if (!measurements || measurements.length === 0) {
             document.getElementById('data-table-body').innerHTML = `
@@ -186,15 +190,38 @@
                 // 제품군 정보 가져오기
                 const productGroup = await api.get(`${API_CONFIG.ENDPOINTS.PRODUCT_GROUPS}/${process.product_group_id}`);
                 
-                // 장비 정보 가져오기
-                let equipmentName = '-';
-                if (measurement.equipment_id) {
+                // 장비 정보 가져오기 - 세 가지 장비 모두 조회
+                let equipmentInfo = '';
+                
+                if (measurement.coating_equipment_id) {
                     try {
-                        const equipment = await api.get(`${API_CONFIG.ENDPOINTS.EQUIPMENTS}/${measurement.equipment_id}`);
-                        equipmentName = equipment.name;
+                        const equipment = await api.get(`${API_CONFIG.ENDPOINTS.EQUIPMENTS}/${measurement.coating_equipment_id}`);
+                        equipmentInfo += `코팅: ${equipment.name}<br>`;
                     } catch (error) {
-                        console.warn(`장비 ID ${measurement.equipment_id}에 대한 정보를 가져올 수 없습니다.`);
+                        console.warn(`장비 ID ${measurement.coating_equipment_id}에 대한 정보를 가져올 수 없습니다.`);
                     }
+                }
+                
+                if (measurement.exposure_equipment_id) {
+                    try {
+                        const equipment = await api.get(`${API_CONFIG.ENDPOINTS.EQUIPMENTS}/${measurement.exposure_equipment_id}`);
+                        equipmentInfo += `노광: ${equipment.name}<br>`;
+                    } catch (error) {
+                        console.warn(`장비 ID ${measurement.exposure_equipment_id}에 대한 정보를 가져올 수 없습니다.`);
+                    }
+                }
+                
+                if (measurement.development_equipment_id) {
+                    try {
+                        const equipment = await api.get(`${API_CONFIG.ENDPOINTS.EQUIPMENTS}/${measurement.development_equipment_id}`);
+                        equipmentInfo += `현상: ${equipment.name}`;
+                    } catch (error) {
+                        console.warn(`장비 ID ${measurement.development_equipment_id}에 대한 정보를 가져올 수 없습니다.`);
+                    }
+                }
+                
+                if (!equipmentInfo) {
+                    equipmentInfo = '-';
                 }
                 
                 // SPEC 정보 가져오기
@@ -215,7 +242,7 @@
                     <td>${productGroup.name}</td>
                     <td>${process.name}</td>
                     <td>${target.name}</td>
-                    <td>${equipmentName}</td>
+                    <td>${equipmentInfo}</td>
                     <td>${measurement.device}</td>
                     <td>${measurement.lot_no}</td>
                     <td>${measurement.wafer_no}</td>
@@ -289,7 +316,7 @@
         });
     }
     
-    // 측정 데이터 상세 정보 표시
+    // 측정 데이터 상세 정보 표시 함수 수정
     async function showMeasurementDetail(measurementId) {
         try {
             // 로딩 표시
@@ -316,15 +343,46 @@
             // 제품군 정보 가져오기
             const productGroup = await api.get(`${API_CONFIG.ENDPOINTS.PRODUCT_GROUPS}/${process.product_group_id}`);
             
-            // 장비 정보 가져오기
-            let equipmentName = '-';
-            if (measurement.equipment_id) {
+            // 장비 정보 가져오기 - 세 가지 장비 정보 모두 조회
+            let equipmentInfo = '';
+            
+            // 코팅 장비 정보
+            if (measurement.coating_equipment_id) {
                 try {
-                    const equipment = await api.get(`${API_CONFIG.ENDPOINTS.EQUIPMENTS}/${measurement.equipment_id}`);
-                    equipmentName = equipment.name;
+                    const equipment = await api.get(`${API_CONFIG.ENDPOINTS.EQUIPMENTS}/${measurement.coating_equipment_id}`);
+                    equipmentInfo += `<tr><th>코팅 장비</th><td>${equipment.name}</td></tr>`;
                 } catch (error) {
-                    console.warn(`장비 ID ${measurement.equipment_id}에 대한 정보를 가져올 수 없습니다.`);
+                    console.warn(`장비 ID ${measurement.coating_equipment_id}에 대한 정보를 가져올 수 없습니다.`);
+                    equipmentInfo += `<tr><th>코팅 장비</th><td>-</td></tr>`;
                 }
+            } else {
+                equipmentInfo += `<tr><th>코팅 장비</th><td>-</td></tr>`;
+            }
+            
+            // 노광 장비 정보
+            if (measurement.exposure_equipment_id) {
+                try {
+                    const equipment = await api.get(`${API_CONFIG.ENDPOINTS.EQUIPMENTS}/${measurement.exposure_equipment_id}`);
+                    equipmentInfo += `<tr><th>노광 장비</th><td>${equipment.name}</td></tr>`;
+                } catch (error) {
+                    console.warn(`장비 ID ${measurement.exposure_equipment_id}에 대한 정보를 가져올 수 없습니다.`);
+                    equipmentInfo += `<tr><th>노광 장비</th><td>-</td></tr>`;
+                }
+            } else {
+                equipmentInfo += `<tr><th>노광 장비</th><td>-</td></tr>`;
+            }
+            
+            // 현상 장비 정보
+            if (measurement.development_equipment_id) {
+                try {
+                    const equipment = await api.get(`${API_CONFIG.ENDPOINTS.EQUIPMENTS}/${measurement.development_equipment_id}`);
+                    equipmentInfo += `<tr><th>현상 장비</th><td>${equipment.name}</td></tr>`;
+                } catch (error) {
+                    console.warn(`장비 ID ${measurement.development_equipment_id}에 대한 정보를 가져올 수 없습니다.`);
+                    equipmentInfo += `<tr><th>현상 장비</th><td>-</td></tr>`;
+                }
+            } else {
+                equipmentInfo += `<tr><th>현상 장비</th><td>-</td></tr>`;
             }
             
             // SPEC 정보 가져오기
@@ -360,10 +418,7 @@
                             <th>타겟</th>
                             <td>${target.name}</td>
                         </tr>
-                        <tr>
-                            <th>장비</th>
-                            <td>${equipmentName}</td>
-                        </tr>
+                        ${equipmentInfo}
                         <tr>
                             <th>DEVICE</th>
                             <td>${measurement.device}</td>
@@ -392,14 +447,27 @@
                 </div>
                 <div class="col-md-6">
                     <h5>측정 데이터</h5>
-                    <div class="measurement-positions mb-3">
-                        <div class="position-cell position-top">${UTILS.formatNumber(measurement.value_top)}</div>
-                        <div class="position-cell position-left">${UTILS.formatNumber(measurement.value_left)}</div>
-                        <div class="position-cell position-center">${UTILS.formatNumber(measurement.value_center)}</div>
-                        <div class="position-cell position-right">${UTILS.formatNumber(measurement.value_right)}</div>
-                        <div class="position-cell position-bottom">${UTILS.formatNumber(measurement.value_bottom)}</div>
-                    </div>
                     <table class="table table-bordered">
+                        <tr>
+                            <th>좌</th>
+                            <td>${UTILS.formatNumber(measurement.value_left)}</td>
+                        </tr>
+                        <tr>
+                            <th>상</th>
+                            <td>${UTILS.formatNumber(measurement.value_top)}</td>
+                        </tr>
+                        <tr>
+                            <th>중</th>
+                            <td>${UTILS.formatNumber(measurement.value_center)}</td>
+                        </tr>
+                        <tr>
+                            <th>하</th>
+                            <td>${UTILS.formatNumber(measurement.value_bottom)}</td>
+                        </tr>
+                        <tr>
+                            <th>우</th>
+                            <td>${UTILS.formatNumber(measurement.value_right)}</td>
+                        </tr>
                         <tr>
                             <th>평균값</th>
                             <td>${UTILS.formatNumber(measurement.avg_value)}</td>

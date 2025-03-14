@@ -1,7 +1,11 @@
+"""
+DICD 측정 관리 시스템 - 초기 데이터 생성 스크립트 (업데이트 버전)
+
+이 스크립트는 테이블 재생성 후 기본 데이터를 새로 삽입합니다.
+"""
+
 import sys
 import os
-
-# 상위 디렉토리를 sys.path에 추가하여 백엔드 모듈을 임포트할 수 있게 함
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from sqlalchemy.orm import Session
@@ -129,6 +133,7 @@ def init_database(db: Session):
                     print(f"SPEC 추가됨 (타겟: {target_value}, LSL: {lsl}, USL: {usl})")
     
     # 장비 추가
+    equipment_dict = {}  # 추가: 장비 ID를 저장할 딕셔너리
     equipment_count = 0
     for eq_type, equipments in equipment_info.items():
         for eq_name in equipments:
@@ -139,8 +144,11 @@ def init_database(db: Session):
                 is_active=True
             )
             db.add(equipment)
+            db.flush()  # ID를 얻기 위해 flush
             equipment_count += 1
-            print(f"장비 '{eq_type} {eq_name}' 추가됨")
+            equipment_key = f"{eq_type}_{eq_name}"
+            equipment_dict[equipment_key] = equipment.id  # 추가: 장비 ID 저장
+            print(f"장비 '{eq_type} {eq_name}' 추가됨, ID: {equipment.id}")
     
     # 변경사항 커밋
     db.commit()

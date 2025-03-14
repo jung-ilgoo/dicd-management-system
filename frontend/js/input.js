@@ -332,7 +332,7 @@
     
     // 이벤트 리스너 설정
     function setupEventListeners() {
-        // 폼 제출 이벤트
+        // 폼 제출 이벤트 핸들러 수정 (세 가지 장비 ID를 올바르게 처리)
     document.getElementById('measurement-form').addEventListener('submit', async function(e) {
         e.preventDefault();
         
@@ -352,6 +352,7 @@
         // 폼 데이터 수집
         const formData = {
             target_id: selectedTargetId,
+            // 각 장비별로 ID 설정
             coating_equipment_id: document.getElementById('coating-equipment').value || null,
             exposure_equipment_id: document.getElementById('exposure-equipment').value || null,
             development_equipment_id: document.getElementById('development-equipment').value || null,

@@ -64,7 +64,7 @@ class Spec(Base):
     # 관계 설정
     target = relationship("Target", back_populates="specs")
 
-# 진행장비 테이블
+# Equipment 클래스 수정
 class Equipment(Base):
     __tablename__ = "equipments"
 
@@ -76,16 +76,28 @@ class Equipment(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
-    # 관계 설정
-    measurements = relationship("Measurement", back_populates="equipment")
+    # 관계 설정 제거
+    # measurements = relationship("Measurement", back_populates="equipment")  # 이 부분 제거
+    
+    # 새로운 관계 설정
+    coating_measurements = relationship("Measurement", foreign_keys="Measurement.coating_equipment_id", back_populates="coating_equipment")
+    exposure_measurements = relationship("Measurement", foreign_keys="Measurement.exposure_equipment_id", back_populates="exposure_equipment")
+    development_measurements = relationship("Measurement", foreign_keys="Measurement.development_equipment_id", back_populates="development_equipment")
 
-# 측정 데이터 테이블
+
+# Measurement 클래스 수정 부분
 class Measurement(Base):
     __tablename__ = "measurements"
 
     id = Column(Integer, primary_key=True, index=True)
     target_id = Column(Integer, ForeignKey("targets.id"), nullable=False)
-    equipment_id = Column(Integer, ForeignKey("equipments.id"), nullable=True)
+    
+    # 기존 equipment_id를 세 개의 장비 ID로 변경
+    # equipment_id = Column(Integer, ForeignKey("equipments.id"), nullable=True)  # 이 줄 제거
+    coating_equipment_id = Column(Integer, ForeignKey("equipments.id"), nullable=True)
+    exposure_equipment_id = Column(Integer, ForeignKey("equipments.id"), nullable=True)
+    development_equipment_id = Column(Integer, ForeignKey("equipments.id"), nullable=True)
+    
     device = Column(String(100), nullable=False)
     lot_no = Column(String(100), nullable=False, index=True)
     wafer_no = Column(String(10), nullable=False)
@@ -107,9 +119,13 @@ class Measurement(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
-    # 관계 설정
+    # 관계 설정 수정
     target = relationship("Target", back_populates="measurements")
-    equipment = relationship("Equipment", back_populates="measurements")
+    
+    coating_equipment = relationship("Equipment", foreign_keys=[coating_equipment_id], back_populates="coating_measurements")
+    exposure_equipment = relationship("Equipment", foreign_keys=[exposure_equipment_id], back_populates="exposure_measurements")
+    development_equipment = relationship("Equipment", foreign_keys=[development_equipment_id], back_populates="development_measurements")
+    
     spc_alerts = relationship("SPCAlert", back_populates="measurement", cascade="all, delete-orphan")
 
 # SPC 규칙 테이블

@@ -116,7 +116,7 @@ def delete_target(db: Session, target_id: int):
         return True
     return False
 
-# 측정 데이터 CRUD 함수
+# 측정 데이터 생성 함수 수정
 def create_measurement(db: Session, measurement_data: measurement.MeasurementCreate):
     # 측정값의 통계치 계산
     values = [
@@ -136,7 +136,10 @@ def create_measurement(db: Session, measurement_data: measurement.MeasurementCre
     # 데이터베이스 객체 생성
     db_measurement = models.Measurement(
         target_id=measurement_data.target_id,
-        equipment_id=measurement_data.equipment_id,
+        # equipment_id 대신 세 개의 장비 ID로 변경
+        coating_equipment_id=measurement_data.coating_equipment_id,
+        exposure_equipment_id=measurement_data.exposure_equipment_id,
+        development_equipment_id=measurement_data.development_equipment_id,
         device=measurement_data.device,
         lot_no=measurement_data.lot_no,
         wafer_no=measurement_data.wafer_no,
@@ -159,6 +162,7 @@ def create_measurement(db: Session, measurement_data: measurement.MeasurementCre
     db.refresh(db_measurement)
     return db_measurement
 
+# 측정 데이터 조회 함수 수정
 def get_measurements(db: Session, target_id: int = None, device: str = None, 
                      lot_no: str = None, start_date: datetime = None, 
                      end_date: datetime = None, equipment_id: int = None,
@@ -176,17 +180,20 @@ def get_measurements(db: Session, target_id: int = None, device: str = None,
         query = query.filter(models.Measurement.created_at >= start_date)
     if end_date:
         query = query.filter(models.Measurement.created_at <= end_date)
+    # equipment_id 필터 수정 - 세 장비 중 하나라도 일치하는 경우 필터링
     if equipment_id:
-        query = query.filter(models.Measurement.equipment_id == equipment_id)
+        query = query.filter(
+            (models.Measurement.coating_equipment_id == equipment_id) |
+            (models.Measurement.exposure_equipment_id == equipment_id) |
+            (models.Measurement.development_equipment_id == equipment_id)
+        )
     
     # 최신 데이터 순으로 정렬
     query = query.order_by(models.Measurement.created_at.desc())
     
     return query.offset(skip).limit(limit).all()
 
-def get_measurement(db: Session, measurement_id: int):
-    return db.query(models.Measurement).filter(models.Measurement.id == measurement_id).first()
-
+# 측정 데이터 업데이트 함수 수정
 def update_measurement(db: Session, measurement_id: int, measurement_data: measurement.MeasurementCreate):
     db_measurement = db.query(models.Measurement).filter(models.Measurement.id == measurement_id).first()
     
