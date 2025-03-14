@@ -1,8 +1,153 @@
-/* 사용자 정의 스타일 */
-.content-wrapper {
-    padding: 20px;
+/* 공통 스타일 */
+.card-header {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.125);
 }
 
-.card {
+.card-title {
+    margin-bottom: 0;
+}
+
+/* 데이터 입력 페이지 */
+.target-selection-container .btn {
+    margin-bottom: 5px;
+    margin-right: 5px;
+    min-width: 80px;
+}
+
+.target-selection-container .btn.active {
+    font-weight: bold;
+}
+
+/* 데이터 조회 페이지 */
+.filter-section {
     margin-bottom: 20px;
+}
+
+.filter-section label {
+    margin-right: 10px;
+}
+
+/* 차트 스타일 */
+.chart-container {
+    position: relative;
+    height: 300px;
+}
+
+/* 상태 아이콘 */
+.status-icon {
+    margin-right: 5px;
+}
+
+.status-success {
+    color: #28a745;
+}
+
+.status-warning {
+    color: #ffc107;
+}
+
+.status-danger {
+    color: #dc3545;
+}
+
+/* 테이블 스타일 */
+.table-responsive {
+    margin-bottom: 0;
+}
+
+/* Spec 라인 스타일 */
+.spec-line {
+    border-top: 2px dashed #3c8dbc;
+}
+
+.usl-line {
+    border-top: 2px dashed #dc3545;
+}
+
+.lsl-line {
+    border-top: 2px dashed #dc3545;
+}
+
+/* 로딩 스피너 */
+.loading-spinner {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 200px;
+}
+
+/* 공정 상태 리스트 */
+.process-status-item {
+    padding: 10px;
+    border-bottom: 1px solid #f4f4f4;
+}
+
+.process-status-item:last-child {
+    border-bottom: none;
+}
+
+.process-status-light {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 5px;
+}
+
+.process-status-light-green {
+    background-color: #28a745;
+}
+
+.process-status-light-yellow {
+    background-color: #ffc107;
+}
+
+.process-status-light-red {
+    background-color: #dc3545;
+}
+
+/* 측정 위치 다이어그램 */
+.measurement-positions {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    gap: 5px;
+    width: 150px;
+    height: 150px;
+    margin: 0 auto;
+}
+
+.position-cell {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+}
+
+.position-top {
+    grid-column: 2;
+    grid-row: 1;
+}
+
+.position-left {
+    grid-column: 1;
+    grid-row: 2;
+}
+
+.position-center {
+    grid-column: 2;
+    grid-row: 2;
+    background-color: #e9ecef;
+}
+
+.position-right {
+    grid-column: 3;
+    grid-row: 2;
+}
+
+.position-bottom {
+    grid-column: 2;
+    grid-row: 3;
 }

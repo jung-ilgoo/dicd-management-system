@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>데이터 입력 - DICD 측정 관리 시스템</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700&display=fallback">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/admin-lte@3.1/dist/css/adminlte.min.css">
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body class="hold-transition sidebar-mini layout-fixed">
+    <div class="wrapper">
+        <!-- 네비게이션 바 -->
+        <nav class="main-header navbar navbar-expand navbar-white navbar-light">
+            <!-- 왼쪽 네비바 링크 -->
+            <ul class="navbar-nav">
+                <li class="nav-item">
+                    <a class="nav-link" data-widget="pushmenu" href="#" role="button"><i class="fas fa-bars"></i></a>
+                </li>
+                <li class="nav-item d-none d-sm-inline-block">
+                    <a href="../index.html" class="nav-link">홈</a>
+                </li>
+            </ul>
+        </nav>
+
+        <!-- 메인 사이드바 -->
+        <aside class="main-sidebar sidebar-dark-primary elevation-4">
+            <!-- 브랜드 로고 -->
+            <a href="../index.html" class="brand-link">
+                <img src="../assets/logo.png" alt="DICD Logo" class="brand-image img-circle elevation-3" style="opacity: .8">
+                <span class="brand-text font-weight-light">DICD 관리 시스템</span>
+            </a>
+
+            <!-- 사이드바 -->
+            <div class="sidebar">
+                <!-- 사이드바 메뉴 -->
+                <nav class="mt-2">
+                    <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
+                        <li class="nav-item">
+                            <a href="../index.html" class="nav-link">
+                                <i class="nav-icon fas fa-tachometer-alt"></i>
+                                <p>대시보드</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="input.html" class="nav-link active">
+                                <i class="nav-icon fas fa-edit"></i>
+                                <p>데이터 입력</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="view.html" class="nav-link">
+                                <i class="nav-icon fas fa-table"></i>
+                                <p>데이터 조회</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="#" class="nav-link">
+                                <i class="nav-icon fas fa-chart-bar"></i>
+                                <p>
+                                    데이터 분석
+                                    <i class="right fas fa-angle-left"></i>
+                                </p>
+                            </a>
+                            <ul class="nav nav-treeview">
+                                <li class="nav-item">
+                                    <a href="analysis/trend.html" class="nav-link">
+                                        <i class="far fa-circle nav-icon"></i>
+                                        <p>추이 분석</p>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a href="analysis/spc.html" class="nav-link">
+                                        <i class="far fa-circle nav-icon"></i>
+                                        <p>SPC 분석</p>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a href="analysis/distribution.html" class="nav-link">
+                                        <i class="far fa-circle nav-icon"></i>
+                                        <p>분포 분석</p>
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+                        <li class="nav-item">
+                            <a href="#" class="nav-link">
+                                <i class="nav-icon fas fa-file-alt"></i>
+                                <p>
+                                    보고서
+                                    <i class="right fas fa-angle-left"></i>
+                                </p>
+                            </a>
+                            <ul class="nav nav-treeview">
+                                <li class="nav-item">
+                                    <a href="reports/weekly.html" class="nav-link">
+                                        <i class="far fa-circle nav-icon"></i>
+                                        <p>주간 보고서</p>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a href="reports/monthly.html" class="nav-link">
+                                        <i class="far fa-circle nav-icon"></i>
+                                        <p>월간 보고서</p>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a href="reports/history.html" class="nav-link">
+                                        <i class="far fa-circle nav-icon"></i>
+                                        <p>보고서 이력</p>
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+                        <li class="nav-item">
+                            <a href="settings.html" class="nav-link">
+                                <i class="nav-icon fas fa-cog"></i>
+                                <p>설정</p>
+                            </a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        </aside>
+
+        <!-- 콘텐츠 래퍼 -->
+        <div class="content-wrapper">
+            <!-- 콘텐츠 헤더 -->
+            <div class="content-header">
+                <div class="container-fluid">
+                    <div class="row mb-2">
+                        <div class="col-sm-6">
+                            <h1 class="m-0">데이터 입력</h1>
+                        </div>
+                        <div class="col-sm-6">
+                            <ol class="breadcrumb float-sm-right">
+                                <li class="breadcrumb-item"><a href="../index.html">Home</a></li>
+                                <li class="breadcrumb-item active">데이터 입력</li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 메인 콘텐츠 -->
+            <section class="content">
+                <div class="container-fluid">
+                    <!-- 제품/공정/타겟 선택 카드 -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title"><i class="fas fa-filter mr-1"></i> 제품/공정/타겟 선택</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <!-- 제품군 선택 -->
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label>제품군</label>
+                                        <div id="product-group-buttons" class="target-selection-container">
+                                            <!-- 제품군 버튼이 여기에 동적으로 추가됩니다 -->
+                                            <div class="text-center py-3">
+                                                <div class="spinner-border text-primary" role="status">
+                                                    <span class="sr-only">로딩 중...</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- 공정 선택 -->
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label>공정</label>
+                                        <div id="process-buttons" class="target-selection-container">
+                                            <!-- 공정 버튼이 여기에 동적으로 추가됩니다 -->
+                                            <p class="text-muted">제품군을 먼저 선택하세요.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- 타겟 선택 -->
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label>타겟</label>
+                                        <div id="target-buttons" class="target-selection-container">
+                                            <!-- 타겟 버튼이 여기에 동적으로 추가됩니다 -->
+                                            <p class="text-muted">공정을 먼저 선택하세요.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 측정 데이터 입력 카드 -->
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title"><i class="fas fa-edit mr-1"></i> 측정 데이터 입력</h3>
+    </div>
+    <div class="card-body">
+        <form id="measurement-form">
+            <div class="row">
+                <!-- DEVICE 입력 -->
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label for="device">DEVICE</label>
+                        <input type="text" class="form-control" id="device" name="device" required>
+                    </div>
+                </div>
+                
+                <!-- LOT NO 입력 -->
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label for="lot-no">LOT NO</label>
+                        <input type="text" class="form-control" id="lot-no" name="lot_no" required>
+                    </div>
+                </div>
+                
+                <!-- WAFER NO 입력 -->
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label for="wafer-no">WAFER NO</label>
+                        <input type="text" class="form-control" id="wafer-no" name="wafer_no" required>
+                        <small class="form-text text-muted">01~50 사이의 값을 입력하세요.</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <!-- 노출 시간 입력 -->
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label for="exposure-time">Exposure Time</label>
+                        <input type="number" class="form-control" id="exposure-time" name="exposure_time">
+                        <small class="form-text text-muted">4자리 정수를 입력하세요.</small>
+                    </div>
+                </div>
+                
+                <!-- 작성자 입력 -->
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label for="author">작성자</label>
+                        <input type="text" class="form-control" id="author" name="author" required>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <!-- 진행장비 선택 영역 -->
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">진행장비 선택</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <!-- 코팅 장비 선택 -->
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="coating-equipment">코팅 장비</label>
+                                        <select class="form-control" id="coating-equipment" name="coating_equipment_id">
+                                            <option value="">장비 선택</option>
+                                            <!-- 코팅 장비 옵션이 여기에 동적으로 추가됩니다 -->
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <!-- 노광 장비 선택 -->
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="exposure-equipment">노광 장비</label>
+                                        <select class="form-control" id="exposure-equipment" name="exposure_equipment_id">
+                                            <option value="">장비 선택</option>
+                                            <!-- 노광 장비 옵션이 여기에 동적으로 추가됩니다 -->
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <!-- 현상 장비 선택 -->
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="development-equipment">현상 장비</label>
+                                        <select class="form-control" id="development-equipment" name="development_equipment_id">
+                                            <option value="">장비 선택</option>
+                                            <!-- 현상 장비 옵션이 여기에 동적으로 추가됩니다 -->
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <!-- 측정값 입력 -->
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">측정값 입력</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-2">
+                                    <div class="form-group">
+                                        <label for="value-top">상</label>
+                                        <input type="number" step="0.001" class="form-control measurement-value" id="value-top" name="value_top" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="form-group">
+                                        <label for="value-center">중</label>
+                                        <input type="number" step="0.001" class="form-control measurement-value" id="value-center" name="value_center" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="form-group">
+                                        <label for="value-bottom">하</label>
+                                        <input type="number" step="0.001" class="form-control measurement-value" id="value-bottom" name="value_bottom" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="form-group">
+                                        <label for="value-left">좌</label>
+                                        <input type="number" step="0.001" class="form-control measurement-value" id="value-left" name="value_left" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="form-group">
+                                        <label for="value-right">우</label>
+                                        <input type="number" step="0.001" class="form-control measurement-value" id="value-right" name="value_right" required>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SPEC 정보 및 검사 결과 -->
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="alert alert-info" id="spec-info">
+                        <i class="fas fa-info-circle mr-1"></i> 제품군, 공정, 타겟을 선택하면 SPEC 정보가 표시됩니다.
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-12 text-center">
+                    <button type="submit" class="btn btn-primary px-4" id="submit-btn">
+                        <i class="fas fa-save mr-1"></i> 저장
+                    </button>
+                    <button type="reset" class="btn btn-secondary px-4 ml-2">
+                        <i class="fas fa-undo mr-1"></i> 초기화
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+        <!-- 푸터 -->
+        <footer class="main-footer">
+            <strong>Copyright &copy; 2025 <a href="#">DICD 측정 관리 시스템</a>.</strong>
+            All rights reserved.
+            <div class="float-right d-none d-sm-inline-block">
+                <b>Version</b> 1.0.0
+            </div>
+        </footer>
+    </div>
+
+    <!-- 스크립트 -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/admin-lte@3.1/dist/js/adminlte.min.js"></script>
+    <script src="../js/config.js"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/input.js"></script>
+</body>
+</html>

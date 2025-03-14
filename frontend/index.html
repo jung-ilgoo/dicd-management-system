@@ -4,38 +4,57 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DICD 측정 관리 시스템</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/admin-lte@3.1/dist/css/adminlte.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700&display=fallback">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/admin-lte@3.1/dist/css/adminlte.min.css">
     <link rel="stylesheet" href="css/style.css">
 </head>
-<body class="hold-transition sidebar-mini">
+<body class="hold-transition sidebar-mini layout-fixed">
     <div class="wrapper">
         <!-- 네비게이션 바 -->
         <nav class="main-header navbar navbar-expand navbar-white navbar-light">
+            <!-- 왼쪽 네비바 링크 -->
             <ul class="navbar-nav">
                 <li class="nav-item">
                     <a class="nav-link" data-widget="pushmenu" href="#" role="button"><i class="fas fa-bars"></i></a>
                 </li>
+                <li class="nav-item d-none d-sm-inline-block">
+                    <a href="index.html" class="nav-link">홈</a>
+                </li>
             </ul>
+
+            <!-- 오른쪽 네비바 링크 -->
             <ul class="navbar-nav ml-auto">
-                <li class="nav-item">
-                    <span class="nav-link">DICD 측정 관리 시스템</span>
+                <!-- 알림 드롭다운 메뉴 -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link" data-toggle="dropdown" href="#">
+                        <i class="far fa-bell"></i>
+                        <span class="badge badge-warning navbar-badge" id="alert-count">0</span>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right" id="alert-container">
+                        <span class="dropdown-item dropdown-header">알림 없음</span>
+                    </div>
                 </li>
             </ul>
         </nav>
 
-        <!-- 사이드바 -->
+        <!-- 메인 사이드바 -->
         <aside class="main-sidebar sidebar-dark-primary elevation-4">
+            <!-- 브랜드 로고 -->
             <a href="index.html" class="brand-link">
+                <img src="assets/logo.png" alt="DICD Logo" class="brand-image img-circle elevation-3" style="opacity: .8">
                 <span class="brand-text font-weight-light">DICD 관리 시스템</span>
             </a>
+
+            <!-- 사이드바 -->
             <div class="sidebar">
+                <!-- 사이드바 메뉴 -->
                 <nav class="mt-2">
-                    <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu">
+                    <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
                         <li class="nav-item">
                             <a href="index.html" class="nav-link active">
-                                <i class="nav-icon fas fa-home"></i>
-                                <p>홈</p>
+                                <i class="nav-icon fas fa-tachometer-alt"></i>
+                                <p>대시보드</p>
                             </a>
                         </li>
                         <li class="nav-item">
@@ -51,15 +70,67 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="pages/analysis.html" class="nav-link">
+                            <a href="#" class="nav-link">
                                 <i class="nav-icon fas fa-chart-bar"></i>
-                                <p>데이터 분석</p>
+                                <p>
+                                    데이터 분석
+                                    <i class="right fas fa-angle-left"></i>
+                                </p>
                             </a>
+                            <ul class="nav nav-treeview">
+                                <li class="nav-item">
+                                    <a href="pages/analysis/trend.html" class="nav-link">
+                                        <i class="far fa-circle nav-icon"></i>
+                                        <p>추이 분석</p>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a href="pages/analysis/spc.html" class="nav-link">
+                                        <i class="far fa-circle nav-icon"></i>
+                                        <p>SPC 분석</p>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a href="pages/analysis/distribution.html" class="nav-link">
+                                        <i class="far fa-circle nav-icon"></i>
+                                        <p>분포 분석</p>
+                                    </a>
+                                </li>
+                            </ul>
                         </li>
                         <li class="nav-item">
-                            <a href="pages/report.html" class="nav-link">
+                            <a href="#" class="nav-link">
                                 <i class="nav-icon fas fa-file-alt"></i>
-                                <p>보고서</p>
+                                <p>
+                                    보고서
+                                    <i class="right fas fa-angle-left"></i>
+                                </p>
+                            </a>
+                            <ul class="nav nav-treeview">
+                                <li class="nav-item">
+                                    <a href="pages/reports/weekly.html" class="nav-link">
+                                        <i class="far fa-circle nav-icon"></i>
+                                        <p>주간 보고서</p>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a href="pages/reports/monthly.html" class="nav-link">
+                                        <i class="far fa-circle nav-icon"></i>
+                                        <p>월간 보고서</p>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a href="pages/reports/history.html" class="nav-link">
+                                        <i class="far fa-circle nav-icon"></i>
+                                        <p>보고서 이력</p>
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+                        <li class="nav-item">
+                            <a href="pages/settings.html" class="nav-link">
+                                <i class="nav-icon fas fa-cog"></i>
+                                <p>설정</p>
                             </a>
                         </li>
                     </ul>
@@ -67,51 +138,200 @@
             </div>
         </aside>
 
-        <!-- 메인 콘텐츠 -->
+        <!-- 콘텐츠 래퍼 -->
         <div class="content-wrapper">
+            <!-- 콘텐츠 헤더 -->
             <div class="content-header">
                 <div class="container-fluid">
                     <div class="row mb-2">
                         <div class="col-sm-6">
                             <h1 class="m-0">대시보드</h1>
                         </div>
+                        <div class="col-sm-6">
+                            <ol class="breadcrumb float-sm-right">
+                                <li class="breadcrumb-item"><a href="#">Home</a></li>
+                                <li class="breadcrumb-item active">대시보드</li>
+                            </ol>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div class="content">
+            <!-- 메인 콘텐츠 -->
+            <section class="content">
                 <div class="container-fluid">
+                    <!-- 정보 박스 -->
                     <div class="row">
-                        <div class="col-lg-12">
+                        <div class="col-lg-3 col-6">
+                            <!-- 총 측정 수 -->
+                            <div class="small-box bg-info">
+                                <div class="inner">
+                                    <h3 id="total-measurements">0</h3>
+                                    <p>총 측정 수</p>
+                                </div>
+                                <div class="icon">
+                                    <i class="fas fa-chart-line"></i>
+                                </div>
+                                <a href="pages/view.html" class="small-box-footer">자세히 보기 <i class="fas fa-arrow-circle-right"></i></a>
+                            </div>
+                        </div>
+                        <div class="col-lg-3 col-6">
+                            <!-- 진행 중인 공정 -->
+                            <div class="small-box bg-success">
+                                <div class="inner">
+                                    <h3 id="total-processes">0</h3>
+                                    <p>활성 공정</p>
+                                </div>
+                                <div class="icon">
+                                    <i class="fas fa-cogs"></i>
+                                </div>
+                                <a href="pages/view.html" class="small-box-footer">자세히 보기 <i class="fas fa-arrow-circle-right"></i></a>
+                            </div>
+                        </div>
+                        <div class="col-lg-3 col-6">
+                            <!-- 알림 -->
+                            <div class="small-box bg-warning">
+                                <div class="inner">
+                                    <h3 id="total-alerts">0</h3>
+                                    <p>새 알림</p>
+                                </div>
+                                <div class="icon">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                </div>
+                                <a href="#" class="small-box-footer">자세히 보기 <i class="fas fa-arrow-circle-right"></i></a>
+                            </div>
+                        </div>
+                        <div class="col-lg-3 col-6">
+                            <!-- SPEC 위반 -->
+                            <div class="small-box bg-danger">
+                                <div class="inner">
+                                    <h3 id="spec-violations">0</h3>
+                                    <p>SPEC 위반</p>
+                                </div>
+                                <div class="icon">
+                                    <i class="fas fa-ban"></i>
+                                </div>
+                                <a href="pages/analysis/trend.html" class="small-box-footer">자세히 보기 <i class="fas fa-arrow-circle-right"></i></a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 메인 카드 -->
+                    <div class="row">
+                        <div class="col-md-8">
+                            <!-- 메인 차트 카드 -->
                             <div class="card">
                                 <div class="card-header">
-                                    <h3 class="card-title">DICD 측정 관리 시스템에 오신 것을 환영합니다</h3>
+                                    <h3 class="card-title">
+                                        <i class="fas fa-chart-line mr-1"></i>
+                                        DICD 추이 분석
+                                    </h3>
+                                    <div class="card-tools">
+                                        <div class="btn-group">
+                                            <button type="button" class="btn btn-tool dropdown-toggle" data-toggle="dropdown">
+                                                <i class="fas fa-filter"></i> 필터
+                                            </button>
+                                            <div class="dropdown-menu dropdown-menu-right" role="menu">
+                                                <a href="#" class="dropdown-item" id="filter-week">최근 1주</a>
+                                                <a href="#" class="dropdown-item active" id="filter-month">최근 1개월</a>
+                                                <a href="#" class="dropdown-item" id="filter-3months">최근 3개월</a>
+                                            </div>
+                                        </div>
+                                        <button type="button" class="btn btn-tool" data-card-widget="collapse">
+                                            <i class="fas fa-minus"></i>
+                                        </button>
+                                    </div>
                                 </div>
                                 <div class="card-body">
-                                    <p>이 시스템은 DICD 측정값을 효율적으로 관리하고 분석하기 위한 웹 기반 솔루션입니다.</p>
-                                    <p>주요 기능:</p>
-                                    <ul>
-                                        <li>데이터 입력 기능</li>
-                                        <li>데이터 조회 기능</li>
-                                        <li>데이터 시각화 및 분석</li>
-                                        <li>SPC 분석 기능</li>
-                                        <li>보고서 생성 기능</li>
+                                    <div class="chart">
+                                        <canvas id="main-chart" style="min-height: 250px; height: 250px; max-height: 250px; max-width: 100%;"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 최근 측정 데이터 -->
+                            <div class="card">
+                                <div class="card-header">
+                                    <h3 class="card-title">최근 측정 데이터</h3>
+                                    <div class="card-tools">
+                                        <button type="button" class="btn btn-tool" data-card-widget="collapse">
+                                            <i class="fas fa-minus"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="card-body p-0">
+                                    <div class="table-responsive">
+                                        <table class="table table-striped">
+                                            <thead>
+                                                <tr>
+                                                    <th>날짜</th>
+                                                    <th>제품군</th>
+                                                    <th>공정</th>
+                                                    <th>타겟</th>
+                                                    <th>LOT NO</th>
+                                                    <th>평균값</th>
+                                                    <th>상태</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="recent-data-table">
+                                                <!-- 데이터가 여기에 동적으로 추가됩니다 -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-4">
+                            <!-- 공정별 상태 -->
+                            <div class="card">
+                                <div class="card-header">
+                                    <h3 class="card-title">공정별 상태</h3>
+                                    <div class="card-tools">
+                                        <button type="button" class="btn btn-tool" data-card-widget="collapse">
+                                            <i class="fas fa-minus"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="card-body p-0">
+                                    <ul class="products-list product-list-in-card pl-2 pr-2" id="process-status-list">
+                                        <!-- 공정 상태가 여기에 동적으로 추가됩니다 -->
                                     </ul>
-                                    <p>왼쪽 메뉴에서 원하는 기능을 선택하세요.</p>
+                                </div>
+                            </div>
+
+                            <!-- 최근 알림 -->
+                            <div class="card">
+                                <div class="card-header">
+                                    <h3 class="card-title">최근 알림</h3>
+                                    <div class="card-tools">
+                                        <button type="button" class="btn btn-tool" data-card-widget="collapse">
+                                            <i class="fas fa-minus"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="card-body p-0">
+                                    <ul class="products-list product-list-in-card pl-2 pr-2" id="recent-alerts-list">
+                                        <!-- 알림이 여기에 동적으로 추가됩니다 -->
+                                    </ul>
+                                </div>
+                                <div class="card-footer text-center">
+                                    <a href="javascript:void(0)" class="uppercase">모든 알림 보기</a>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            </section>
         </div>
 
         <!-- 푸터 -->
         <footer class="main-footer">
-            <div class="float-right d-none d-sm-inline">
-                버전 0.1.0
+            <strong>Copyright &copy; 2025 <a href="#">DICD 측정 관리 시스템</a>.</strong>
+            All rights reserved.
+            <div class="float-right d-none d-sm-inline-block">
+                <b>Version</b> 1.0.0
             </div>
-            <strong>DICD 측정 관리 시스템</strong>
         </footer>
     </div>
 
@@ -119,6 +339,9 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/admin-lte@3.1/dist/js/adminlte.min.js"></script>
-    <script src="js/main.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.5.1/dist/chart.min.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/dashboard.js"></script>
 </body>
 </html>
