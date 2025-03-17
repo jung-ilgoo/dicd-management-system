@@ -7,6 +7,13 @@
     margin-bottom: 0;
 }
 
+/* 커스텀 너비 (col-md-1.5와 비슷한 효과) */
+.custom-width {
+    width: 12.5%; /* 12 컬럼 시스템에서 1.5/12 = 12.5% */
+    padding-right: 7.5px;
+    padding-left: 7.5px;
+}
+
 /* 사이드바 브랜드 링크 스타일링 (로고 제거 후) */
 .brand-link {
     text-align: center;
