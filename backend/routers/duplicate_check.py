@@ -4,7 +4,7 @@ from typing import Dict
 from ..database import crud, database
 
 router = APIRouter(
-    prefix="/api/duplicate-check",
+    prefix="/duplicate-check",
     tags=["duplicate-check"],
 )
 

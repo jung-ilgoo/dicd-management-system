@@ -392,8 +392,6 @@
     
     // 이벤트 리스너 설정
     function setupEventListeners() {
-        // 폼 제출 이벤트 핸들러 수정 (세 가지 장비 ID를 올바르게 처리)
-        // 폼 제출 이벤트 핸들러를 찾아 아래 코드로 대체
         document.getElementById('measurement-form').addEventListener('submit', async function(e) {
             e.preventDefault();
             
@@ -429,6 +427,20 @@
             };
             
             try {
+                // 중복 체크
+                const checkResult = await api.checkDuplicateMeasurement(
+                    selectedTargetId,
+                    formData.lot_no,
+                    formData.wafer_no
+                );
+                
+                if (checkResult.isDuplicate) {
+                    // 중복 데이터가 있을 경우 사용자에게 확인
+                    if (!confirm('이미 동일한 타겟에 대한 LOT NO와 WAFER NO를 가진 측정 데이터가 존재합니다. 그래도 저장하시겠습니까?')) {
+                        return; // 저장 취소
+                    }
+                }
+                
                 // 제출 버튼 비활성화
                 const submitBtn = document.getElementById('submit-btn');
                 submitBtn.disabled = true;
@@ -457,6 +469,7 @@
                 submitBtn.innerHTML = '<i class="fas fa-save mr-1"></i> 저장';
             }
         });
+    
         
         // 측정값 입력 이벤트
         document.querySelectorAll('.measurement-value').forEach(input => {

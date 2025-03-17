@@ -153,8 +153,7 @@ class API {
     
     // 새 메서드 추가
     checkDuplicateMeasurement(targetId, lotNo, waferNo) {
-        // 새 엔드포인트 사용
-        return this.get(`/api/duplicate-check`, {
+        return this.get(`${this.endpoints.DUPLICATE_CHECK}`, {
             target_id: targetId,
             lot_no: lotNo,
             wafer_no: waferNo

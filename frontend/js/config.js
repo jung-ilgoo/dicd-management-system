@@ -20,7 +20,9 @@ const API_CONFIG = {
         // 통계 관련 엔드포인트
         STATISTICS: '/statistics',
         // 보고서 관련 엔드포인트
-        REPORTS: '/reports'
+        REPORTS: '/reports',
+        // 기존 엔드포인트들...
+        DUPLICATE_CHECK: '/duplicate-check'
     }
 };
 
