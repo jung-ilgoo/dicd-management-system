@@ -12,7 +12,7 @@ from backend.routers import statistics
 from backend.routers import spc as spc_router
 from backend.routers import reports
 from backend.routers import equipments as equipments_router
-
+from backend.routers import duplicate_check
 
 # 데이터베이스 테이블 생성
 models.Base.metadata.create_all(bind=database.engine)
@@ -41,6 +41,7 @@ app.include_router(statistics.router)
 app.include_router(spc_router.router)
 app.include_router(reports.router)
 app.include_router(equipments_router.router)
+app.include_router(duplicate_check.router)
 
 @app.get("/")
 async def root():

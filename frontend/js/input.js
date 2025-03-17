@@ -393,84 +393,70 @@
     // 이벤트 리스너 설정
     function setupEventListeners() {
         // 폼 제출 이벤트 핸들러 수정 (세 가지 장비 ID를 올바르게 처리)
-    // 폼 제출 이벤트 핸들러를 찾아 아래 코드로 대체
-    document.getElementById('measurement-form').addEventListener('submit', async function(e) {
-        e.preventDefault();
-        
-        // 모든 필수 입력 항목 확인
-        if (!selectedTargetId) {
-            alert('제품군, 공정, 타겟을 선택해주세요.');
-            return;
-        }
-        
-        // 측정값 검사
-        if (!validateMeasurementValues()) {
-            if (!confirm('측정값이 SPEC 범위를 벗어났습니다. 계속 진행하시겠습니까?')) {
+        // 폼 제출 이벤트 핸들러를 찾아 아래 코드로 대체
+        document.getElementById('measurement-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            // 모든 필수 입력 항목 확인
+            if (!selectedTargetId) {
+                alert('제품군, 공정, 타겟을 선택해주세요.');
                 return;
             }
-        }
-        
-        // 폼 데이터 수집
-        const formData = {
-            target_id: selectedTargetId,
-            coating_equipment_id: document.getElementById('coating-equipment').value || null,
-            exposure_equipment_id: document.getElementById('exposure-equipment').value || null,
-            development_equipment_id: document.getElementById('development-equipment').value || null,
-            device: document.getElementById('device').value,
-            lot_no: document.getElementById('lot-no').value,
-            wafer_no: document.getElementById('wafer-no').value,
-            exposure_time: document.getElementById('exposure-time').value || null,
-            value_top: parseFloat(document.getElementById('value-top').value),
-            value_center: parseFloat(document.getElementById('value-center').value),
-            value_bottom: parseFloat(document.getElementById('value-bottom').value),
-            value_left: parseFloat(document.getElementById('value-left').value),
-            value_right: parseFloat(document.getElementById('value-right').value),
-            author: document.getElementById('author').value
-        };
-        
-        try {
-            // 중복 체크 (새로 추가된 부분)
-            const isDuplicate = await api.checkDuplicateMeasurement(
-                selectedTargetId,
-                formData.lot_no,
-                formData.wafer_no
-            );
             
-            if (isDuplicate) {
-                // 중복 데이터가 있을 경우 사용자에게 확인
-                if (!confirm('이미 동일한 타겟에 대한 LOT NO와 WAFER NO를 가진 측정 데이터가 존재합니다. 그래도 저장하시겠습니까?')) {
-                    return; // 저장 취소
+            // 측정값 검사
+            if (!validateMeasurementValues()) {
+                if (!confirm('측정값이 SPEC 범위를 벗어났습니다. 계속 진행하시겠습니까?')) {
+                    return;
                 }
             }
             
-            // 제출 버튼 비활성화
-            const submitBtn = document.getElementById('submit-btn');
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> 저장 중...';
+            // 폼 데이터 수집
+            const formData = {
+                target_id: selectedTargetId,
+                coating_equipment_id: document.getElementById('coating-equipment').value || null,
+                exposure_equipment_id: document.getElementById('exposure-equipment').value || null,
+                development_equipment_id: document.getElementById('development-equipment').value || null,
+                device: document.getElementById('device').value,
+                lot_no: document.getElementById('lot-no').value,
+                wafer_no: document.getElementById('wafer-no').value,
+                exposure_time: document.getElementById('exposure-time').value || null,
+                value_top: parseFloat(document.getElementById('value-top').value),
+                value_center: parseFloat(document.getElementById('value-center').value),
+                value_bottom: parseFloat(document.getElementById('value-bottom').value),
+                value_left: parseFloat(document.getElementById('value-left').value),
+                value_right: parseFloat(document.getElementById('value-right').value),
+                author: document.getElementById('author').value
+            };
             
-            // API 호출
-            const result = await api.createMeasurement(formData);
-            
-            // 성공 메시지
-            alert('측정 데이터가 성공적으로 저장되었습니다.');
-            
-            // 폼 초기화
-            document.getElementById('measurement-form').reset();
-            
-            // 제출 버튼 활성화
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = '<i class="fas fa-save mr-1"></i> 저장';
-            
-        } catch (error) {
-            console.error('측정 데이터 저장 실패:', error);
-            alert('측정 데이터 저장 중 오류가 발생했습니다.');
-            
-            // 제출 버튼 활성화
-            const submitBtn = document.getElementById('submit-btn');
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = '<i class="fas fa-save mr-1"></i> 저장';
-        }
-    });
+            try {
+                // 제출 버튼 비활성화
+                const submitBtn = document.getElementById('submit-btn');
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> 저장 중...';
+                
+                // API 호출
+                const result = await api.createMeasurement(formData);
+                
+                // 성공 메시지
+                alert('측정 데이터가 성공적으로 저장되었습니다.');
+                
+                // 폼 초기화
+                document.getElementById('measurement-form').reset();
+                
+                // 제출 버튼 활성화
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-save mr-1"></i> 저장';
+                
+            } catch (error) {
+                console.error('측정 데이터 저장 실패:', error);
+                alert('측정 데이터 저장 중 오류가 발생했습니다.');
+                
+                // 제출 버튼 활성화
+                const submitBtn = document.getElementById('submit-btn');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-save mr-1"></i> 저장';
+            }
+        });
         
         // 측정값 입력 이벤트
         document.querySelectorAll('.measurement-value').forEach(input => {

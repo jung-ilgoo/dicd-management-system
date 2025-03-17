@@ -401,19 +401,9 @@ def delete_equipment(db: Session, equipment_id: int):
         return True
     return False
 
-# 다음 함수를 추가
 def check_duplicate_measurement(db: Session, target_id: int, lot_no: str, wafer_no: str) -> bool:
     """
     동일한 타겟, LOT NO, WAFER NO 조합의 측정 데이터가 이미 존재하는지 확인
-    
-    매개변수:
-    - db: 데이터베이스 세션
-    - target_id: 타겟 ID
-    - lot_no: LOT NO
-    - wafer_no: WAFER NO
-    
-    반환값:
-    - bool: 중복 데이터가 존재하면 True, 그렇지 않으면 False
     """
     existing = db.query(models.Measurement).filter(
         models.Measurement.target_id == target_id,
