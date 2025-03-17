@@ -256,46 +256,73 @@
                 return;
             }
             
-            // 코팅 장비 버튼 생성
+            // 코팅 장비 버튼 생성 (2x4 그리드 = 최대 8개)
             const coatingEquipments = equipments.filter(eq => eq.type === '코팅');
             let coatingButtonsHtml = '';
-            coatingEquipments.forEach(equipment => {
+            
+            // 최대 8개만 표시 (2x4 그리드)
+            const coatingToShow = coatingEquipments.slice(0, 8);
+            coatingToShow.forEach(equipment => {
                 coatingButtonsHtml += `
-                <button type="button" class="btn btn-outline-primary equipment-btn mr-2 mb-2" 
+                <button type="button" class="btn btn-outline-primary equipment-btn" 
                         data-type="coating" 
                         data-id="${equipment.id}">
                     ${equipment.name}
                 </button>
                 `;
             });
+            
+            // 비어있는 셀 채우기 (코팅은 8개 셀)
+            for (let i = coatingToShow.length; i < 8; i++) {
+                coatingButtonsHtml += `<div class="empty-cell"></div>`;
+            }
+            
             document.getElementById('coating-equipment-buttons').innerHTML = coatingButtonsHtml;
             
-            // 노광 장비 버튼 생성 (유사한 로직)
+            // 노광 장비 버튼 생성 (2x3 그리드 = 최대 6개)
             const exposureEquipments = equipments.filter(eq => eq.type === '노광');
             let exposureButtonsHtml = '';
-            exposureEquipments.forEach(equipment => {
+            
+            // 최대 6개만 표시 (2x3 그리드)
+            const exposureToShow = exposureEquipments.slice(0, 6);
+            exposureToShow.forEach(equipment => {
                 exposureButtonsHtml += `
-                <button type="button" class="btn btn-outline-primary equipment-btn mr-2 mb-2" 
+                <button type="button" class="btn btn-outline-primary equipment-btn" 
                         data-type="exposure" 
                         data-id="${equipment.id}">
                     ${equipment.name}
                 </button>
                 `;
             });
+            
+            // 비어있는 셀 채우기 (노광은 6개 셀)
+            for (let i = exposureToShow.length; i < 6; i++) {
+                exposureButtonsHtml += `<div class="empty-cell"></div>`;
+            }
+            
             document.getElementById('exposure-equipment-buttons').innerHTML = exposureButtonsHtml;
             
-            // 현상 장비 버튼 생성 (유사한 로직)
+            // 현상 장비 버튼 생성 (2x2 그리드 = 최대 4개)
             const developmentEquipments = equipments.filter(eq => eq.type === '현상');
             let developmentButtonsHtml = '';
-            developmentEquipments.forEach(equipment => {
+            
+            // 최대 4개만 표시 (2x2 그리드)
+            const developmentToShow = developmentEquipments.slice(0, 4);
+            developmentToShow.forEach(equipment => {
                 developmentButtonsHtml += `
-                <button type="button" class="btn btn-outline-primary equipment-btn mr-2 mb-2" 
+                <button type="button" class="btn btn-outline-primary equipment-btn" 
                         data-type="development" 
                         data-id="${equipment.id}">
                     ${equipment.name}
                 </button>
                 `;
             });
+            
+            // 비어있는 셀 채우기 (현상은 4개 셀)
+            for (let i = developmentToShow.length; i < 4; i++) {
+                developmentButtonsHtml += `<div class="empty-cell"></div>`;
+            }
+            
             document.getElementById('development-equipment-buttons').innerHTML = developmentButtonsHtml;
             
             // 장비 버튼 클릭 이벤트 추가
@@ -455,6 +482,151 @@
         });
     }
     
+    // 작성자 관리 기능 (모달 창 사용)
+    function initAuthorManagement() {
+        // 로컬 스토리지에서 작성자 목록 불러오기
+        const loadAuthors = () => {
+            const authors = localStorage.getItem('authors');
+            return authors ? JSON.parse(authors) : ['관리자']; // 기본값 설정
+        };
+
+        // 작성자 목록 저장
+        const saveAuthors = (authors) => {
+            localStorage.setItem('authors', JSON.stringify(authors));
+        };
+
+        // 작성자 드롭다운 업데이트
+        const updateAuthorDropdown = () => {
+            const authors = loadAuthors();
+            const authorSelect = document.getElementById('author');
+            
+            // 기존 옵션 제거 (첫 번째 항목 제외)
+            while (authorSelect.options.length > 1) {
+                authorSelect.remove(1);
+            }
+            
+            // 작성자 옵션 추가
+            authors.forEach(author => {
+                const option = document.createElement('option');
+                option.value = author;
+                option.textContent = author;
+                authorSelect.appendChild(option);
+            });
+        };
+
+        // 작성자 목록 업데이트 (모달 창)
+        const updateAuthorList = () => {
+            const authors = loadAuthors();
+            const authorList = document.getElementById('author-list');
+            
+            // 목록 초기화
+            authorList.innerHTML = '';
+            
+            // 작성자 목록 생성
+            authors.forEach(author => {
+                const li = document.createElement('li');
+                li.className = 'list-group-item d-flex justify-content-between align-items-center';
+                li.textContent = author;
+                
+                // 삭제 버튼
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'btn btn-sm btn-outline-danger';
+                deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
+                deleteBtn.onclick = function() {
+                    removeAuthor(author);
+                };
+                
+                li.appendChild(deleteBtn);
+                authorList.appendChild(li);
+            });
+        };
+
+        // 작성자 추가
+        const addAuthor = (newAuthor) => {
+            if (!newAuthor || newAuthor.trim() === '') {
+                return false;
+            }
+            
+            // 중복 확인
+            const authors = loadAuthors();
+            if (authors.includes(newAuthor.trim())) {
+                alert('이미 존재하는 작성자입니다.');
+                return false;
+            }
+            
+            // 새 작성자 추가
+            authors.push(newAuthor.trim());
+            saveAuthors(authors);
+            
+            // UI 업데이트
+            updateAuthorDropdown();
+            updateAuthorList();
+            
+            return true;
+        };
+
+        // 작성자 제거
+        const removeAuthor = (authorToRemove) => {
+            const authors = loadAuthors();
+            
+            // 최소 한 명의 작성자는 유지
+            if (authors.length <= 1) {
+                alert('최소 한 명의 작성자는 유지해야 합니다.');
+                return false;
+            }
+            
+            // 작성자 삭제
+            const updatedAuthors = authors.filter(author => author !== authorToRemove);
+            saveAuthors(updatedAuthors);
+            
+            // UI 업데이트
+            updateAuthorDropdown();
+            updateAuthorList();
+            
+            return true;
+        };
+
+        // 추가/관리 버튼 이벤트 (인라인)
+        document.getElementById('add-author-btn').addEventListener('click', () => {
+            $('#author-modal').modal('show');
+        });
+
+        // 모달 창에서 추가 버튼 이벤트
+        document.getElementById('add-author-modal-btn').addEventListener('click', () => {
+            const newAuthorInput = document.getElementById('new-author');
+            const newAuthor = newAuthorInput.value;
+            
+            if (addAuthor(newAuthor)) {
+                newAuthorInput.value = ''; // 입력 필드 초기화
+                // 새로 추가된 작성자 선택
+                const authorSelect = document.getElementById('author');
+                authorSelect.value = newAuthor.trim();
+            }
+        });
+
+        // 모달 창이 표시될 때 이벤트
+        $('#author-modal').on('shown.bs.modal', function () {
+            document.getElementById('new-author').focus();
+            updateAuthorList();
+        });
+
+        // 모달 창에서 엔터 키 처리
+        document.getElementById('new-author').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                document.getElementById('add-author-modal-btn').click();
+            }
+        });
+
+        // 초기 드롭다운 설정
+        updateAuthorDropdown();
+    }
+
+    // 페이지 로드 시 작성자 관리 초기화
+    document.addEventListener('DOMContentLoaded', function() {
+        initAuthorManagement();
+    });
+
     // 페이지 로드 시 초기화
     document.addEventListener('DOMContentLoaded', initInputPage);
 })();

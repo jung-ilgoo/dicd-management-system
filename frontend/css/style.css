@@ -7,6 +7,22 @@
     margin-bottom: 0;
 }
 
+/* 사이드바 브랜드 링크 스타일링 (로고 제거 후) */
+.brand-link {
+    text-align: center;
+    padding: 15px 0.5rem;
+    height: 57px;
+    line-height: 1.5;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.brand-text {
+    font-size: 1.1rem;
+    margin-left: 0 !important; /* AdminLTE 기본 마진 제거 */
+}
+
 /* 데이터 입력 페이지 */
 .target-selection-container .btn {
     margin-bottom: 5px;
@@ -16,6 +32,68 @@
 
 .target-selection-container .btn.active {
     font-weight: bold;
+}
+
+/* 장비 그리드 공통 스타일 */
+.equipment-grid {
+    display: grid;
+    gap: 6px; /* 작은 간격 */
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+    padding: 6px;
+    height: 100px; /* 전체 높이 조정 */
+}
+
+/* 코팅 장비 (2x4 그리드) */
+.coating-grid {
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+}
+
+/* 노광 장비 (2x3 그리드) */
+.exposure-grid {
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+}
+
+/* 현상 장비 (2x2 그리드) */
+.development-grid {
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+}
+
+/* 장비 버튼 스타일 - 여백 최소화 */
+.equipment-btn {
+    font-size: 0.85rem;
+    padding: 0 0rem !important;
+    white-space: normal;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    line-height: 1;
+    margin: 0 !important;
+    border-width: 1px !important;
+}
+
+/* 선택된 장비 버튼 강조 */
+.equipment-btn.active {
+    background-color: #007bff;
+    color: white;
+    font-weight: normal;
+}
+
+/* 빈 셀 스타일 */
+.empty-cell {
+    border: 1px dashed #dee2e6;
+    border-radius: 0.25rem;
+}
+
+/* 선택된 장비 버튼 강조 */
+.equipment-btn.active {
+    font-weight: bold;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
 }
 
 /* 데이터 조회 페이지 */
