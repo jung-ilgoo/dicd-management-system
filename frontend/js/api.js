@@ -151,6 +151,14 @@ class API {
         return this.get(this.endpoints.REPORTS, params);
     }
     
+    // API 클래스에 다음 메서드 추가
+    checkDuplicateMeasurement(targetId, lotNo, waferNo) {
+        return this.get(`${this.endpoints.MEASUREMENTS}/check-duplicate`, {
+            target_id: targetId,
+            lot_no: lotNo,
+            wafer_no: waferNo
+        });
+    }
     
     generateWeeklyReport(targetId, date = null) {
         const params = date ? { date } : {};

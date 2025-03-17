@@ -78,3 +78,20 @@ def delete_measurement(measurement_id: int, db: Session = Depends(database.get_d
     if not success:
         raise HTTPException(status_code=404, detail="Measurement not found")
     return success
+
+# 기존 라우터에 다음 엔드포인트 추가
+@router.get("/check-duplicate", response_model=dict)
+def check_duplicate_measurement(
+    target_id: int,
+    lot_no: str, 
+    wafer_no: str, 
+    db: Session = Depends(database.get_db)
+):
+    """
+    동일한 타겟, LOT NO, WAFER NO 조합의 측정 데이터가 이미 존재하는지 확인
+    """
+    existing = crud.check_duplicate_measurement(
+        db, target_id=target_id, lot_no=lot_no, wafer_no=wafer_no
+    )
+    
+    return {"isDuplicate": existing}
