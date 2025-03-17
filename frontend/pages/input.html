@@ -193,6 +193,53 @@
                         </div>
                     </div>
 
+                    <div class="row">
+                        <!-- 진행장비 선택 영역 -->
+                        <div class="col-md-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h3 class="card-title">진행장비 선택</h3>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <!-- 코팅 장비 선택 -->
+                                        <div class="col-md-4">
+                                            <div class="form-group">
+                                                <label class="d-block text-center mb-2">코팅 장비</label>
+                                                <div id="coating-equipment-buttons" class="d-flex justify-content-center">
+                                                    <!-- 코팅 장비 버튼이 여기에 동적으로 추가됩니다 -->
+                                                </div>
+                                                <input type="hidden" id="coating-equipment" name="coating_equipment_id">
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- 노광 장비 선택 -->
+                                        <div class="col-md-4">
+                                            <div class="form-group">
+                                                <label class="d-block text-center mb-2">노광 장비</label>
+                                                <div id="exposure-equipment-buttons" class="d-flex justify-content-center">
+                                                    <!-- 노광 장비 버튼이 여기에 동적으로 추가됩니다 -->
+                                                </div>
+                                                <input type="hidden" id="exposure-equipment" name="exposure_equipment_id">
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- 현상 장비 선택 -->
+                                        <div class="col-md-4">
+                                            <div class="form-group">
+                                                <label class="d-block text-center mb-2">현상 장비</label>
+                                                <div id="development-equipment-buttons" class="d-flex justify-content-center">
+                                                    <!-- 현상 장비 버튼이 여기에 동적으로 추가됩니다 -->
+                                                </div>
+                                                <input type="hidden" id="development-equipment" name="development_equipment_id">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- 측정 데이터 입력 카드 -->
 <div class="card">
     <div class="card-header">
@@ -202,142 +249,80 @@
         <form id="measurement-form">
             <div class="row">
                 <!-- DEVICE 입력 -->
-                <div class="col-md-4">
+                <div class="col-md-2">
                     <div class="form-group">
-                        <label for="device">DEVICE</label>
+                        <label for="device" style="display: block; text-align: center;">DEVICE</label>
                         <input type="text" class="form-control" id="device" name="device" required>
                     </div>
                 </div>
                 
                 <!-- LOT NO 입력 -->
-                <div class="col-md-4">
+                <div class="col-md-2">
                     <div class="form-group">
-                        <label for="lot-no">LOT NO</label>
+                        <label for="lot-no" style="display: block; text-align: center;">LOT NO</label>
                         <input type="text" class="form-control" id="lot-no" name="lot_no" required>
                     </div>
                 </div>
                 
                 <!-- WAFER NO 입력 -->
-                <div class="col-md-4">
+                <div class="col-md-1">
                     <div class="form-group">
-                        <label for="wafer-no">WAFER NO</label>
+                        <label for="wafer-no" style="display: block; text-align: center;">WAFER NO</label>
                         <input type="text" class="form-control" id="wafer-no" name="wafer_no" required>
                         <small class="form-text text-muted">01~50 사이의 값을 입력하세요.</small>
                     </div>
                 </div>
-            </div>
 
-            <div class="row">
                 <!-- 노출 시간 입력 -->
-                <div class="col-md-4">
+                <div class="col-md-1">
                     <div class="form-group">
-                        <label for="exposure-time">Exposure Time</label>
+                        <label for="exposure-time" style="display: block; text-align: center;">Exposure Time</label>
                         <input type="number" class="form-control" id="exposure-time" name="exposure_time">
                         <small class="form-text text-muted">4자리 정수를 입력하세요.</small>
                     </div>
                 </div>
                 
-                <!-- 작성자 입력 -->
-                <div class="col-md-4">
+                <!-- 측정값 입력 (좌에서 우로 일렬로 정렬) -->
+                <div class="col-md-1">
                     <div class="form-group">
-                        <label for="author">작성자</label>
+                        <label for="value-top" style="display: block; text-align: center;">상</label>
+                        <input type="number" step="0.001" class="form-control measurement-value" id="value-top" name="value_top" required>
+                    </div>
+                </div>
+                <div class="col-md-1">
+                    <div class="form-group">
+                        <label for="value-center" style="display: block; text-align: center;">중</label>
+                        <input type="number" step="0.001" class="form-control measurement-value" id="value-center" name="value_center" required>
+                    </div>
+                </div>
+                <div class="col-md-1">
+                    <div class="form-group">
+                        <label for="value-bottom" style="display: block; text-align: center;">하</label>
+                        <input type="number" step="0.001" class="form-control measurement-value" id="value-bottom" name="value_bottom" required>
+                    </div>
+                </div>
+                <div class="col-md-1">
+                    <div class="form-group">
+                        <label for="value-left" style="display: block; text-align: center;">좌</label>
+                        <input type="number" step="0.001" class="form-control measurement-value" id="value-left" name="value_left" required>
+                    </div>
+                </div>
+                <div class="col-md-1">
+                    <div class="form-group">
+                        <label for="value-right" style="display: block; text-align: center;">우</label>
+                        <input type="number" step="0.001" class="form-control measurement-value" id="value-right" name="value_right" required>
+                    </div>
+                </div>
+
+                <!-- 작성자 입력 -->
+                <div class="col-md-1">
+                    <div class="form-group">
+                        <label for="author" style="display: block; text-align: center;">작성자</label>
                         <input type="text" class="form-control" id="author" name="author" required>
                     </div>
                 </div>
             </div>
-
-            <div class="row">
-                <!-- 진행장비 선택 영역 -->
-                <div class="col-md-12">
-                    <div class="card">
-                        <div class="card-header">
-                            <h3 class="card-title">진행장비 선택</h3>
-                        </div>
-                        <div class="card-body">
-                            <div class="row">
-                                <!-- 코팅 장비 선택 -->
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label for="coating-equipment">코팅 장비</label>
-                                        <select class="form-control" id="coating-equipment" name="coating_equipment_id">
-                                            <option value="">장비 선택</option>
-                                            <!-- 코팅 장비 옵션이 여기에 동적으로 추가됩니다 -->
-                                        </select>
-                                    </div>
-                                </div>
-                                
-                                <!-- 노광 장비 선택 -->
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label for="exposure-equipment">노광 장비</label>
-                                        <select class="form-control" id="exposure-equipment" name="exposure_equipment_id">
-                                            <option value="">장비 선택</option>
-                                            <!-- 노광 장비 옵션이 여기에 동적으로 추가됩니다 -->
-                                        </select>
-                                    </div>
-                                </div>
-                                
-                                <!-- 현상 장비 선택 -->
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label for="development-equipment">현상 장비</label>
-                                        <select class="form-control" id="development-equipment" name="development_equipment_id">
-                                            <option value="">장비 선택</option>
-                                            <!-- 현상 장비 옵션이 여기에 동적으로 추가됩니다 -->
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 측정값 입력 -->
-            <div class="row">
-                <div class="col-md-12">
-                    <div class="card">
-                        <div class="card-header">
-                            <h3 class="card-title">측정값 입력</h3>
-                        </div>
-                        <div class="card-body">
-                            <div class="row">
-                                <!-- 측정값 입력 (좌에서 우로 일렬로 정렬) -->
-                                <div class="col-md-2">
-                                    <div class="form-group">
-                                        <label for="value-left">좌</label>
-                                        <input type="number" step="0.001" class="form-control measurement-value" id="value-left" name="value_left" required>
-                                    </div>
-                                </div>
-                                <div class="col-md-2">
-                                    <div class="form-group">
-                                        <label for="value-top">상</label>
-                                        <input type="number" step="0.001" class="form-control measurement-value" id="value-top" name="value_top" required>
-                                    </div>
-                                </div>
-                                <div class="col-md-2">
-                                    <div class="form-group">
-                                        <label for="value-center">중</label>
-                                        <input type="number" step="0.001" class="form-control measurement-value" id="value-center" name="value_center" required>
-                                    </div>
-                                </div>
-                                <div class="col-md-2">
-                                    <div class="form-group">
-                                        <label for="value-bottom">하</label>
-                                        <input type="number" step="0.001" class="form-control measurement-value" id="value-bottom" name="value_bottom" required>
-                                    </div>
-                                </div>
-                                <div class="col-md-2">
-                                    <div class="form-group">
-                                        <label for="value-right">우</label>
-                                        <input type="number" step="0.001" class="form-control measurement-value" id="value-right" name="value_right" required>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            
             
             <!-- SPEC 정보 및 검사 결과 -->
             <div class="row">

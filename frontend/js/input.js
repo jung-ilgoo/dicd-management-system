@@ -256,31 +256,64 @@
                 return;
             }
             
-            // 장비 유형별로 분류
+            // 코팅 장비 버튼 생성
             const coatingEquipments = equipments.filter(eq => eq.type === '코팅');
-            const exposureEquipments = equipments.filter(eq => eq.type === '노광');
-            const developmentEquipments = equipments.filter(eq => eq.type === '현상');
-            
-            // 코팅 장비 옵션 설정
-            let coatingOptions = '<option value="">장비 선택</option>';
+            let coatingButtonsHtml = '';
             coatingEquipments.forEach(equipment => {
-                coatingOptions += `<option value="${equipment.id}">${equipment.name}</option>`;
+                coatingButtonsHtml += `
+                <button type="button" class="btn btn-outline-primary equipment-btn mr-2 mb-2" 
+                        data-type="coating" 
+                        data-id="${equipment.id}">
+                    ${equipment.name}
+                </button>
+                `;
             });
-            document.getElementById('coating-equipment').innerHTML = coatingOptions;
+            document.getElementById('coating-equipment-buttons').innerHTML = coatingButtonsHtml;
             
-            // 노광 장비 옵션 설정
-            let exposureOptions = '<option value="">장비 선택</option>';
+            // 노광 장비 버튼 생성 (유사한 로직)
+            const exposureEquipments = equipments.filter(eq => eq.type === '노광');
+            let exposureButtonsHtml = '';
             exposureEquipments.forEach(equipment => {
-                exposureOptions += `<option value="${equipment.id}">${equipment.name}</option>`;
+                exposureButtonsHtml += `
+                <button type="button" class="btn btn-outline-primary equipment-btn mr-2 mb-2" 
+                        data-type="exposure" 
+                        data-id="${equipment.id}">
+                    ${equipment.name}
+                </button>
+                `;
             });
-            document.getElementById('exposure-equipment').innerHTML = exposureOptions;
+            document.getElementById('exposure-equipment-buttons').innerHTML = exposureButtonsHtml;
             
-            // 현상 장비 옵션 설정
-            let developmentOptions = '<option value="">장비 선택</option>';
+            // 현상 장비 버튼 생성 (유사한 로직)
+            const developmentEquipments = equipments.filter(eq => eq.type === '현상');
+            let developmentButtonsHtml = '';
             developmentEquipments.forEach(equipment => {
-                developmentOptions += `<option value="${equipment.id}">${equipment.name}</option>`;
+                developmentButtonsHtml += `
+                <button type="button" class="btn btn-outline-primary equipment-btn mr-2 mb-2" 
+                        data-type="development" 
+                        data-id="${equipment.id}">
+                    ${equipment.name}
+                </button>
+                `;
             });
-            document.getElementById('development-equipment').innerHTML = developmentOptions;
+            document.getElementById('development-equipment-buttons').innerHTML = developmentButtonsHtml;
+            
+            // 장비 버튼 클릭 이벤트 추가
+            document.querySelectorAll('.equipment-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    // 같은 타입의 다른 버튼들 비활성화
+                    const type = this.dataset.type;
+                    document.querySelectorAll(`.equipment-btn[data-type="${type}"]`).forEach(btn => {
+                        btn.classList.remove('active');
+                    });
+                    
+                    // 현재 버튼 활성화
+                    this.classList.add('active');
+                    
+                    // 해당 타입의 hidden input에 ID 설정
+                    document.getElementById(`${type}-equipment`).value = this.dataset.id;
+                });
+            });
         
         } catch (error) {
             console.error('장비 목록 로드 실패:', error);
