@@ -416,7 +416,46 @@
             document.getElementById('save-target-btn').innerHTML = '저장';
         }
     }
-    
+    // 타겟 삭제
+    async function deleteTarget(targetId) {
+        // 삭제 전 확인
+        const confirmMessage = '이 타겟을 삭제하시겠습니까? 이 타겟에 연결된 모든 SPEC 및 측정 데이터도 삭제됩니다.';
+        
+        if (!confirm(confirmMessage)) {
+            return;
+        }
+        
+        try {
+            // API 호출
+            await api.deleteTarget(targetId);
+            
+            // 타겟 목록 다시 로드
+            await loadTargets(selectedProcessId);
+            
+            // 선택 초기화
+            selectedTargetId = null;
+            document.getElementById('spec-target').value = '';
+            
+            // SPEC 내용 초기화
+            document.getElementById('spec-content').innerHTML = `
+            <div class="text-center py-5">
+                <i class="fas fa-info-circle fa-2x text-info mb-3"></i>
+                <p>타겟을 선택하면 해당 타겟의 SPEC 정보가 여기에 표시됩니다.</p>
+            </div>
+            `;
+            
+            // 타겟 삭제 버튼 비활성화
+            document.getElementById('delete-target-btn').disabled = true;
+            
+            // 성공 메시지
+            alert('타겟이 성공적으로 삭제되었습니다.');
+            
+        } catch (error) {
+            console.error('타겟 삭제 실패:', error);
+            alert('타겟 삭제 중 오류가 발생했습니다. 해당 타겟에 연결된 측정 데이터가 있을 수 있습니다.');
+        }
+    }
+
     // 이벤트 리스너 설정
     function setupEventListeners() {
         // 제품군 선택 변경 이벤트

@@ -234,6 +234,7 @@
         if (data.spec) {
             const usl = data.spec.usl;
             const lsl = data.spec.lsl;
+            const target = data.spec.target || ((usl + lsl) / 2);
             
             // USL 추가
             datasets.push({
@@ -250,6 +251,16 @@
                 label: 'LSL',
                 data: Array(labels.length).fill(lsl),
                 borderColor: '#3366ff',
+                borderWidth: 1.5,
+                pointRadius: 0,
+                fill: false
+            });
+
+            // 타겟값 추가 - 새로 추가하는 코드
+            datasets.push({
+                label: '타겟',
+                data: Array(labels.length).fill(target),
+                borderColor: '#FF9900',  // 주황색 사용
                 borderWidth: 1.5,
                 pointRadius: 0,
                 fill: false
