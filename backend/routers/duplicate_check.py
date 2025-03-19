@@ -4,7 +4,7 @@ from typing import Dict
 from ..database import crud, database
 
 router = APIRouter(
-    prefix="/duplicate-check",
+    prefix="/api/duplicate-check",
     tags=["duplicate-check"],
 )
 
@@ -15,6 +15,10 @@ async def check_duplicate_measurement(
     wafer_no: str = Query(...),
     db: Session = Depends(database.get_db)
 ):
+    print(f"Received params: target_id={target_id}, lot_no={lot_no}, wafer_no={wafer_no}")
+    existing = crud.check_duplicate_measurement(
+        db, target_id=target_id, lot_no=lot_no, wafer_no=wafer_no
+    )
     existing = crud.check_duplicate_measurement(
         db, target_id=target_id, lot_no=lot_no, wafer_no=wafer_no
     )
