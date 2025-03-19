@@ -160,6 +160,73 @@ class API {
         });
     }
     
+    // SPEC 관련 메서드 추가
+    async getSpecs(targetId = null, isActive = null) {
+        const params = {};
+        if (targetId !== null) params.target_id = targetId;
+        if (isActive !== null) params.is_active = isActive;
+        return this.get(this.endpoints.SPECS, params);
+    }
+
+    async getActiveSpec(targetId) {
+        return this.get(`${this.endpoints.SPECS}/target/${targetId}/active`);
+    }
+
+    async createSpec(data) {
+        return this.post(this.endpoints.SPECS, data);
+    }
+
+    async updateSpec(specId, data) {
+        return this.put(`${this.endpoints.SPECS}/${specId}`, data);
+    }
+
+    async activateSpec(specId) {
+        return this.put(`${this.endpoints.SPECS}/${specId}/activate`, {});
+    }
+
+    async deleteSpec(specId) {
+        return this.delete(`${this.endpoints.SPECS}/${specId}`);
+    }
+
+    // 타겟 관련 메서드 추가
+    async createTarget(data) {
+        return this.post(this.endpoints.TARGETS, data);
+    }
+
+    async updateTarget(targetId, data) {
+        return this.put(`${this.endpoints.TARGETS}/${targetId}`, data);
+    }
+
+    async deleteTarget(targetId) {
+        return this.delete(`${this.endpoints.TARGETS}/${targetId}`);
+    }
+
+    // 제품군 관련 추가 메서드
+    async createProductGroup(data) {
+        return this.post(this.endpoints.PRODUCT_GROUPS, data);
+    }
+
+    async updateProductGroup(productGroupId, data) {
+        return this.put(`${this.endpoints.PRODUCT_GROUPS}/${productGroupId}`, data);
+    }
+
+    async deleteProductGroup(productGroupId) {
+        return this.delete(`${this.endpoints.PRODUCT_GROUPS}/${productGroupId}`);
+    }
+
+    // 공정 관련 추가 메서드
+    async createProcess(data) {
+        return this.post(this.endpoints.PROCESSES, data);
+    }
+
+    async updateProcess(processId, data) {
+        return this.put(`${this.endpoints.PROCESSES}/${processId}`, data);
+    }
+
+    async deleteProcess(processId) {
+        return this.delete(`${this.endpoints.PROCESSES}/${processId}`);
+    }
+
     generateWeeklyReport(targetId, date = null) {
         const params = date ? { date } : {};
         const queryParams = new URLSearchParams(params).toString();
