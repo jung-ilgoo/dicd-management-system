@@ -181,7 +181,7 @@
             }
             
             // 통계 API 호출
-            const statsResult = await api.getTargetStatistics(selectedTargetId, params);
+            const statsResult = await api.getTargetStatistics(selectedTargetId, params.days);
             currentStats = statsResult;
             
             // 측정 데이터 API 호출
