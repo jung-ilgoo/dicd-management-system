@@ -5,6 +5,8 @@
     let selectedProductGroupId = null;
     let selectedProcessId = null;
     let selectedTargetId = null;
+    let rChart = null; // 추가: R 차트 변수
+    
     
     // 페이지 초기화
     async function initSpcPage() {
@@ -109,6 +111,16 @@
             </div>
             `;
             
+            // R 차트 로딩 표시 추가
+            document.getElementById('r-chart-container').innerHTML = `
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="sr-only">로딩 중...</span>
+                </div>
+                <p class="mt-2">R 차트 분석 중...</p>
+            </div>
+            `;
+
             // SPC 분석 API 호출
             const result = await api.analyzeSpc(selectedTargetId, days);
             
@@ -138,17 +150,27 @@
                 </div>
             </div>
             `;
+            document.getElementById('r-chart-container').innerHTML = `
+            <div class="text-center py-5">
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle mr-1"></i> 분석할 데이터가 없습니다.
+                </div>
+            </div>
+            `;
             return;
         }
         
         // 관리도 차트 그리기
         createControlChart(result);
         
+        // R 차트 그리기
+        createRChart(result);
+        
         // 관리 한계 테이블 업데이트
         updateControlLimitsTable(result.control_limits);
         
-        // 공정능력지수 테이블 업데이트
-        updateCapabilityTable(result.process_capability);
+        // 공정능력지수 테이블 업데이트 (process_capability가 없을 수도 있음)
+        updateCapabilityTable(result.process_capability || {});
         
         // SPEC 테이블 업데이트
         updateSpecTable(result.spec);
@@ -336,6 +358,163 @@
         });
     }
     
+    // R 차트 생성
+    function createRChart(data) {
+        // 차트 컨테이너 준비
+        document.getElementById('r-chart-container').innerHTML = `
+        <canvas id="r-chart"></canvas>
+        `;
+        
+        // 차트 데이터 준비
+        const labels = data.data.dates.map(date => date.split('T')[0]);
+        
+        // 범위 값 계산 (subgroup 범위)
+        // 현재 데이터에 범위값이 직접 포함되어 있지 않다면 계산 필요
+        // 여기서는 예시로 위치별 최대값-최소값 차이를 범위로 사용
+        const rValues = [];
+        
+        // 위치별 데이터가 있는 경우
+        if (data.position_data) {
+            const positions = ['top', 'center', 'bottom', 'left', 'right'];
+            
+            // 각 날짜별로 위치 데이터의 범위(최대-최소) 계산
+            for (let i = 0; i < labels.length; i++) {
+                let valuesAtPosition = [];
+                positions.forEach(pos => {
+                    if (data.position_data[pos] && typeof data.position_data[pos][i] === 'number') {
+                        valuesAtPosition.push(data.position_data[pos][i]);
+                    }
+                });
+                
+                // 위치별 값이 있으면 범위 계산, 없으면 0
+                if (valuesAtPosition.length > 1) {
+                    const max = Math.max(...valuesAtPosition);
+                    const min = Math.min(...valuesAtPosition);
+                    rValues.push(max - min);
+                } else {
+                    // 범위 데이터가 없는 경우 0 또는 null로 처리
+                    rValues.push(0);
+                }
+            }
+        } else {
+            // 위치별 데이터가 없는 경우, 값 자체가 범위를 나타낸다고 가정
+            // 또는 data.data.values를 사용하여 이동 범위(moving range) 계산 가능
+            for (let i = 1; i < data.data.values.length; i++) {
+                const currentValue = data.data.values[i];
+                const prevValue = data.data.values[i-1];
+                const range = Math.abs(currentValue - prevValue);
+                rValues.push(range);
+            }
+            
+            // 첫 번째 데이터 포인트에 대한 범위 (앞의 데이터가 없으므로 두 번째 범위 값과 동일하게 처리)
+            if (rValues.length > 0) {
+                rValues.unshift(rValues[0]);
+            }
+        }
+        
+        // R 차트의 관리 한계 계산
+        // 이 값은 API에서 제공하거나 직접 계산할 수 있음
+        const rAvg = rValues.reduce((sum, value) => sum + value, 0) / rValues.length;
+        const d2 = 2.326; // k=5 subgroup 크기에 대한 d2 상수 (위치 5개 기준)
+        const d3 = 0.864; // k=5에 대한 d3 상수
+        const rUcl = rAvg + (3 * rAvg * d3 / d2);
+        const rLcl = Math.max(0, rAvg - (3 * rAvg * d3 / d2)); // LCL은 0보다 작을 수 없음
+        
+        // Chart.js 설정
+        const ctx = document.getElementById('r-chart').getContext('2d');
+        
+        // 기존 차트 파괴
+        if (rChart) {
+            rChart.destroy();
+        }
+        
+        // 데이터셋 준비
+        const datasets = [
+            {
+                label: 'Range (R)',
+                data: rValues,
+                borderColor: '#3c8dbc',
+                backgroundColor: 'rgba(60, 141, 188, 0.1)',
+                fill: false,
+                tension: 0.4,
+                pointRadius: 4,
+                pointHoverRadius: 6
+            },
+            {
+                label: 'R-bar',
+                data: Array(labels.length).fill(rAvg),
+                borderColor: '#28a745',
+                borderDash: [5, 5],
+                borderWidth: 2,
+                pointRadius: 0,
+                fill: false
+            },
+            {
+                label: 'UCL',
+                data: Array(labels.length).fill(rUcl),
+                borderColor: '#dc3545',
+                borderDash: [5, 5],
+                borderWidth: 2,
+                pointRadius: 0,
+                fill: false
+            }
+        ];
+        
+        // LCL이 0보다 크면 추가
+        if (rLcl > 0) {
+            datasets.push({
+                label: 'LCL',
+                data: Array(labels.length).fill(rLcl),
+                borderColor: '#dc3545',
+                borderDash: [5, 5],
+                borderWidth: 2,
+                pointRadius: 0,
+                fill: false
+            });
+        }
+        
+        // 차트 생성
+        rChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'R 차트 (범위 차트)'
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    legend: {
+                        position: 'top'
+                    }
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: '날짜'
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: '범위 (R)'
+                        },
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+
     // 관리 한계 테이블 업데이트
     function updateControlLimitsTable(controlLimits) {
         if (!controlLimits) {
@@ -361,31 +540,50 @@
         `;
     }
     
-    // 공정능력지수 테이블 업데이트
+    // 공정능력지수 테이블 업데이트 함수 수정
     function updateCapabilityTable(capability) {
-        if (!capability) {
-            return;
-        }
-        
         // 테이블 업데이트
         const tableBody = document.querySelector('#capability-table tbody');
+        
+        // capability가 없거나 필요한 필드가 없는 경우 처리
+        if (!capability) {
+            tableBody.innerHTML = `
+            <tr>
+                <th>Cp</th>
+                <td>-</td>
+            </tr>
+            <tr>
+                <th>Cpk</th>
+                <td>-</td>
+            </tr>
+            <tr>
+                <th>Pp</th>
+                <td>-</td>
+            </tr>
+            <tr>
+                <th>Ppk</th>
+                <td>-</td>
+            </tr>
+            `;
+            return;
+        }
         
         tableBody.innerHTML = `
         <tr>
             <th>Cp</th>
-            <td>${capability.cp ? capability.cp.toFixed(3) : '-'}</td>
+            <td>${capability.cp !== undefined ? capability.cp.toFixed(3) : '-'}</td>
         </tr>
         <tr>
             <th>Cpk</th>
-            <td>${capability.cpk ? capability.cpk.toFixed(3) : '-'}</td>
+            <td>${capability.cpk !== undefined ? capability.cpk.toFixed(3) : '-'}</td>
         </tr>
         <tr>
             <th>Pp</th>
-            <td>${capability.pp ? capability.pp.toFixed(3) : '-'}</td>
+            <td>${capability.pp !== undefined ? capability.pp.toFixed(3) : '-'}</td>
         </tr>
         <tr>
             <th>Ppk</th>
-            <td>${capability.ppk ? capability.ppk.toFixed(3) : '-'}</td>
+            <td>${capability.ppk !== undefined ? capability.ppk.toFixed(3) : '-'}</td>
         </tr>
         `;
     }

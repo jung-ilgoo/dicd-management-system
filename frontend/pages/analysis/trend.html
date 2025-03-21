@@ -9,6 +9,34 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/admin-lte@3.1/dist/css/adminlte.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css">
     <link rel="stylesheet" href="../../css/style.css">
+    <style>
+        /* 공정 능력 지수 스타일 */
+        .capability-gauge-container {
+            margin-bottom: 10px;
+        }
+        .capability-gauge {
+            position: relative;
+            height: 12px;
+            width: 100px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .capability-gauge-fill {
+            position: absolute;
+            height: 100%;
+            border-radius: 4px;
+        }
+        .capability-gauge-label {
+            font-weight: bold;
+            width: 40px;
+            margin-right: 10px;
+        }
+        .capability-gauge-value {
+            font-weight: bold;
+            margin-left: 10px;
+        }
+    </style>
 </head>
 <body class="hold-transition sidebar-mini layout-fixed">
     <div class="wrapper">
