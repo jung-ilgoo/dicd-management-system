@@ -131,100 +131,205 @@ function renderCpkHeatmap() {
         return;
     }
     
-    // 제품군별 분류
-    const groupedData = {};
+    // IC별 분류
+    const groupedByIC = {};
     cpkHeatmapData.forEach(item => {
-        if (!groupedData[item.productGroup]) {
-            groupedData[item.productGroup] = {};
+        if (!groupedByIC[item.productGroup]) {
+            groupedByIC[item.productGroup] = {};
         }
         
-        if (!groupedData[item.productGroup][item.process]) {
-            groupedData[item.productGroup][item.process] = [];
+        if (!groupedByIC[item.productGroup][item.process]) {
+            groupedByIC[item.productGroup][item.process] = [];
         }
         
-        groupedData[item.productGroup][item.process].push(item);
+        groupedByIC[item.productGroup][item.process].push(item);
+    });
+    
+    // IC별 총 타겟 수 계산
+    const icTargetCounts = {};
+    Object.keys(groupedByIC).forEach(ic => {
+        let targetCount = 0;
+        Object.keys(groupedByIC[ic]).forEach(process => {
+            targetCount += groupedByIC[ic][process].length;
+        });
+        icTargetCounts[ic] = targetCount;
+    });
+    
+    // 타겟 수에 따라 IC를 분류 (적은 것과 많은 것)
+    const smallICs = [];
+    const largeICs = [];
+    
+    // 타겟 수가 적은 IC 분류 (예: DIODE, RF)
+    Object.keys(icTargetCounts).forEach(ic => {
+        if (ic === 'DIODE' || ic === 'RF' || icTargetCounts[ic] <= 3) {
+            smallICs.push(ic);
+        } else {
+            largeICs.push(ic);
+        }
     });
     
     // 히트맵 HTML 생성
-    let heatmapHtml = '';
+    let heatmapHtml = '<div class="row">';
     
-    // 각 제품군별 카드 생성
-    for (const [productGroup, processes] of Object.entries(groupedData)) {
+    // 왼쪽 영역 (타겟 수가 많은 IC)
+    heatmapHtml += '<div class="col-md-9">';
+    heatmapHtml += '<div class="row">';
+    
+    // 타겟 수가 많은 IC들의 카드 생성
+    largeICs.forEach(ic => {
         heatmapHtml += `
-        <div class="card mb-3">
-            <div class="card-header bg-light">
-                <h5 class="mb-0">${productGroup}</h5>
-            </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-bordered table-sm mb-0">
-                        <thead>
-                            <tr>
-                                <th>공정</th>
-                                <th>타겟</th>
-                                <th>Cpk</th>
-                                <th>상태</th>
-                            </tr>
-                        </thead>
-                        <tbody>
+        <div class="col-md-6 mb-2">
+            <div class="card card-outline card-primary h-100">
+                <div class="card-header py-1">
+                    <h3 class="card-title font-weight-bold">${ic}</h3>
+                </div>
+                <div class="card-body p-0">
+                    <div class="treemap-container">
         `;
         
-        // 각 공정 및 타겟별 행 추가
-        for (const [process, targets] of Object.entries(processes)) {
-            // 첫 번째 행은 공정명 표시, 나머지는 빈칸
-            let isFirstRow = true;
-            let processRowspan = targets.length;
+        // 각 공정별 블록 생성
+        Object.keys(groupedByIC[ic]).forEach(process => {
+            const targets = groupedByIC[ic][process];
             
-            for (const target of targets) {
-                heatmapHtml += '<tr>';
+            heatmapHtml += `
+            <div class="process-block">
+                <div class="process-header">
+                    <span class="font-weight-bold">${process}</span>
+                </div>
+                <div class="target-container">
+            `;
+            
+            // 각 타겟별 블록 생성
+            targets.forEach(item => {
+                // Cpk 상태에 따른 색상 결정
+                let bgColor = '';
+                let textColor = '';
+                let status = '';
                 
-                if (isFirstRow) {
-                    heatmapHtml += `<td rowspan="${processRowspan}">${process}</td>`;
-                    isFirstRow = false;
-                }
-                
-                // 타겟 정보 및 Cpk 값 표시
-                heatmapHtml += `<td>${target.target}</td>`;
-                
-                // Cpk 값과 상태 표시
-                if (target.cpk === null) {
-                    heatmapHtml += `<td class="text-center">-</td>`;
-                    heatmapHtml += `<td class="text-center"><span class="badge bg-secondary">데이터 없음</span></td>`;
+                if (item.cpk === null) {
+                    bgColor = '#e9ecef'; // 회색
+                    textColor = '#6c757d'; // 회색 텍스트
+                    status = '데이터 없음';
+                } else if (item.cpk >= 1.33) {
+                    bgColor = '#d4edda'; // 녹색
+                    textColor = '#155724'; // 진한 녹색 텍스트
+                    status = '우수';
+                } else if (item.cpk >= 1.00) {
+                    bgColor = '#d1ecf1'; // 파란색
+                    textColor = '#0c5460'; // 진한 파란색 텍스트
+                    status = '적합';
+                } else if (item.cpk >= 0.67) {
+                    bgColor = '#fff3cd'; // 노란색
+                    textColor = '#856404'; // 진한 노란색 텍스트
+                    status = '부적합';
                 } else {
-                    // Cpk 상태에 따른 배지 색상 결정
-                    let badgeClass = '';
-                    let status = '';
-                    
-                    if (target.cpk >= 1.33) {
-                        badgeClass = 'bg-success';
-                        status = '우수';
-                    } else if (target.cpk >= 1.00) {
-                        badgeClass = 'bg-info';
-                        status = '적합';
-                    } else if (target.cpk >= 0.67) {
-                        badgeClass = 'bg-warning';
-                        status = '부적합';
-                    } else {
-                        badgeClass = 'bg-danger';
-                        status = '매우 부적합';
-                    }
-                    
-                    heatmapHtml += `<td class="text-center">${target.cpk.toFixed(3)}</td>`;
-                    heatmapHtml += `<td class="text-center"><span class="badge ${badgeClass}">${status}</span></td>`;
+                    bgColor = '#f8d7da'; // 빨간색
+                    textColor = '#721c24'; // 진한 빨간색 텍스트
+                    status = '매우 부적합';
                 }
                 
-                heatmapHtml += '</tr>';
-            }
-        }
+                heatmapHtml += `
+                <div class="target-block" style="background-color: ${bgColor};">
+                    <div class="target-value" style="color: ${textColor};">${item.target}</div>
+                    <div class="cpk-value" style="color: ${textColor};">
+                        ${item.cpk !== null ? item.cpk.toFixed(3) : '-'}
+                    </div>
+                    <div class="status-badge" style="color: ${textColor};">${status}</div>
+                </div>
+                `;
+            });
+            
+            heatmapHtml += `
+                </div>
+            </div>
+            `;
+        });
         
         heatmapHtml += `
-                        </tbody>
-                    </table>
+                    </div>
                 </div>
             </div>
         </div>
         `;
-    }
+    });
+    
+    heatmapHtml += '</div>'; // 왼쪽 영역 row 종료
+    heatmapHtml += '</div>'; // 왼쪽 영역 col-md-9 종료
+    
+    // 오른쪽 영역 (타겟 수가 적은 IC)
+    heatmapHtml += '<div class="col-md-3">';
+    
+    // 타겟 수가 적은 IC들의 카드 생성 (세로로 배치)
+    smallICs.forEach(ic => {
+        heatmapHtml += `
+        <div class="card card-outline card-secondary mb-2">
+            <div class="card-header py-1 bg-light">
+                <h3 class="card-title font-weight-bold">${ic}</h3>
+            </div>
+            <div class="card-body p-0">
+                <div class="small-treemap-container">
+        `;
+        
+        // 각 공정별 블록 생성 (작은 영역)
+        Object.keys(groupedByIC[ic]).forEach(process => {
+            const targets = groupedByIC[ic][process];
+            
+            heatmapHtml += `
+            <div class="small-process-block">
+                <div class="small-process-header">
+                    <span class="font-weight-bold">${process}</span>
+                </div>
+                <div class="small-target-container">
+            `;
+            
+            // 각 타겟별 블록 생성 (작은 영역)
+            targets.forEach(item => {
+                // Cpk 상태에 따른 색상 결정
+                let bgColor = '';
+                let textColor = '';
+                
+                if (item.cpk === null) {
+                    bgColor = '#e9ecef'; // 회색
+                    textColor = '#6c757d'; // 회색 텍스트
+                } else if (item.cpk >= 1.33) {
+                    bgColor = '#d4edda'; // 녹색
+                    textColor = '#155724'; // 진한 녹색 텍스트
+                } else if (item.cpk >= 1.00) {
+                    bgColor = '#d1ecf1'; // 파란색
+                    textColor = '#0c5460'; // 진한 파란색 텍스트
+                } else if (item.cpk >= 0.67) {
+                    bgColor = '#fff3cd'; // 노란색
+                    textColor = '#856404'; // 진한 노란색 텍스트
+                } else {
+                    bgColor = '#f8d7da'; // 빨간색
+                    textColor = '#721c24'; // 진한 빨간색 텍스트
+                }
+                
+                heatmapHtml += `
+                <div class="small-target-block" style="background-color: ${bgColor};">
+                    <div class="small-target-value" style="color: ${textColor};">${item.target}</div>
+                    <div class="small-cpk-value" style="color: ${textColor};">
+                        ${item.cpk !== null ? item.cpk.toFixed(3) : '-'}
+                    </div>
+                </div>
+                `;
+            });
+            
+            heatmapHtml += `
+                </div>
+            </div>
+            `;
+        });
+        
+        heatmapHtml += `
+                </div>
+            </div>
+        </div>
+        `;
+    });
+    
+    heatmapHtml += '</div>'; // 오른쪽 영역 col-md-3 종료
+    heatmapHtml += '</div>'; // 전체 row 종료
     
     document.getElementById('cpk-heatmap-container').innerHTML = heatmapHtml;
 }

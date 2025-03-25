@@ -248,3 +248,148 @@
     font-size: 0.85rem;
     padding: 5px 8px;
 }
+
+/* 배경색 투명도 클래스 추가 */
+.bg-opacity-10 {
+    opacity: 0.1;
+}
+
+/* 테이블 스타일 개선 */
+#cpk-heatmap-container .table {
+    margin-bottom: 0;
+}
+
+#cpk-heatmap-container .table td, 
+#cpk-heatmap-container .table th {
+    padding: 0.5rem;
+    vertical-align: middle;
+}
+
+/* 구분선 스타일 */
+#cpk-heatmap-container .bg-light td {
+    background-color: #f8f9fa;
+}
+
+#cpk-heatmap-container .bg-secondary td {
+    background-color: #6c757d;
+}
+
+/* 트리맵 스타일 - 더 오밀조밀하게 조정 */
+.treemap-container {
+    display: flex;
+    flex-wrap: wrap;
+    padding: 5px;
+    gap: 5px;
+}
+
+.process-block {
+    border: 1px solid #dee2e6;
+    border-radius: 3px;
+    width: calc(33.33% - 5px); /* 3개 열로 변경 */
+    min-width: 150px;
+    margin-bottom: 5px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    overflow: hidden;
+}
+
+.process-header {
+    background-color: #f8f9fa;
+    padding: 4px 8px;
+    border-bottom: 1px solid #dee2e6;
+    font-size: 0.85rem;
+}
+
+.target-container {
+    display: flex;
+    flex-wrap: wrap;
+    padding: 4px;
+    gap: 4px;
+}
+
+.target-block {
+    width: calc(50% - 2px);
+    min-width: 60px;
+    padding: 4px;
+    border: 1px solid rgba(0,0,0,0.1);
+    border-radius: 3px;
+    text-align: center;
+}
+
+.target-value {
+    font-size: 0.9rem;
+    font-weight: bold;
+    margin-bottom: 0;
+}
+
+.cpk-value {
+    font-size: 0.8rem;
+    margin: 2px 0;
+}
+
+.status-badge {
+    font-size: 0.7rem;
+    font-weight: bold;
+}
+
+/* 반응형 조정 */
+@media (max-width: 1200px) {
+    .process-block {
+        width: calc(50% - 5px); /* 태블릿에서는 2개 열 */
+    }
+}
+
+@media (max-width: 768px) {
+    .process-block {
+        width: 100%; /* 모바일에서는 1개 열 */
+    }
+}
+
+/* 작은 IC를 위한 트리맵 스타일 */
+.small-treemap-container {
+    display: flex;
+    flex-direction: column;
+    padding: 4px;
+    gap: 4px;
+}
+
+.small-process-block {
+    border: 1px solid #dee2e6;
+    border-radius: 3px;
+    margin-bottom: 4px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    overflow: hidden;
+}
+
+.small-process-header {
+    background-color: #f8f9fa;
+    padding: 2px 6px;
+    border-bottom: 1px solid #dee2e6;
+    font-size: 0.8rem;
+}
+
+.small-target-container {
+    display: flex;
+    flex-wrap: wrap;
+    padding: 3px;
+    gap: 3px;
+}
+
+.small-target-block {
+    width: calc(50% - 2px);
+    min-width: 50px;
+    padding: 3px;
+    border: 1px solid rgba(0,0,0,0.1);
+    border-radius: 2px;
+    text-align: center;
+}
+
+.small-target-value {
+    font-size: 0.8rem;
+    font-weight: bold;
+    margin-bottom: 0;
+}
+
+.small-cpk-value {
+    font-size: 0.7rem;
+    margin: 1px 0;
+}
