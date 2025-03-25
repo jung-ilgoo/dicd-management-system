@@ -236,3 +236,15 @@
     grid-column: 2;
     grid-row: 3;
 }
+
+/* 히트맵 스타일 */
+.cpk-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.cpk-legend .badge {
+    font-size: 0.85rem;
+    padding: 5px 8px;
+}

@@ -17,13 +17,20 @@ def create_measurement(
 ):
     return crud.create_measurement(db=db, measurement_data=measurement_data)
 
+# backend/routers/measurements.py 파일의 read_measurements 함수 업데이트
+
+# backend/routers/measurements.py 파일의 read_measurements 함수 업데이트
+
 @router.get("/", response_model=List[measurement.Measurement])
 def read_measurements(
     target_id: Optional[int] = None,
+    process_id: Optional[int] = None,        # 추가: 공정 ID
+    product_group_id: Optional[int] = None,  # 추가: 제품군 ID
     device: Optional[str] = None,
     lot_no: Optional[str] = None,
     days: Optional[int] = Query(14, description="최근 일수 (기본 2주)"),
     equipment_id: Optional[int] = None,
+    keyword: Optional[str] = None,
     skip: int = 0, 
     limit: int = 100, 
     db: Session = Depends(database.get_db)
@@ -35,11 +42,14 @@ def read_measurements(
     
     measurements = crud.get_measurements(
         db, 
-        target_id=target_id, 
+        target_id=target_id,
+        process_id=process_id,           # 추가
+        product_group_id=product_group_id, # 추가
         device=device, 
         lot_no=lot_no, 
         start_date=start_date, 
         equipment_id=equipment_id,
+        keyword=keyword,
         skip=skip, 
         limit=limit
     )

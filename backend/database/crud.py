@@ -162,14 +162,29 @@ def create_measurement(db: Session, measurement_data: measurement.MeasurementCre
     db.refresh(db_measurement)
     return db_measurement
 
-# 측정 데이터 조회 함수 수정
-def get_measurements(db: Session, target_id: int = None, device: str = None, 
+# backend/database/crud.py 파일의 get_measurements 함수 업데이트
+
+def get_measurements(db: Session, target_id: int = None, process_id: int = None,
+                     product_group_id: int = None, device: str = None, 
                      lot_no: str = None, start_date: datetime = None, 
                      end_date: datetime = None, equipment_id: int = None,
-                     skip: int = 0, limit: int = 100):
+                     keyword: str = None, skip: int = 0, limit: int = 100):
+    
+    # 조인 쿼리를 위한 설정
     query = db.query(models.Measurement)
     
-    # 필터 적용
+    # 제품군 또는 공정으로 필터링이 필요한 경우 조인 수행
+    if product_group_id or process_id:
+        query = query.join(models.Target, models.Measurement.target_id == models.Target.id)
+        query = query.join(models.Process, models.Target.process_id == models.Process.id)
+        
+        if product_group_id:
+            query = query.filter(models.Process.product_group_id == product_group_id)
+        
+        if process_id:
+            query = query.filter(models.Target.process_id == process_id)
+    
+    # 기존 필터 적용
     if target_id:
         query = query.filter(models.Measurement.target_id == target_id)
     if device:
@@ -180,12 +195,20 @@ def get_measurements(db: Session, target_id: int = None, device: str = None,
         query = query.filter(models.Measurement.created_at >= start_date)
     if end_date:
         query = query.filter(models.Measurement.created_at <= end_date)
-    # equipment_id 필터 수정 - 세 장비 중 하나라도 일치하는 경우 필터링
+    # equipment_id 필터 - 세 장비 중 하나라도 일치하는 경우 필터링
     if equipment_id:
         query = query.filter(
             (models.Measurement.coating_equipment_id == equipment_id) |
             (models.Measurement.exposure_equipment_id == equipment_id) |
             (models.Measurement.development_equipment_id == equipment_id)
+        )
+    
+    # 키워드 검색 처리
+    if keyword:
+        query = query.filter(
+            (models.Measurement.device.like(f"%{keyword}%")) |
+            (models.Measurement.lot_no.like(f"%{keyword}%")) |
+            (models.Measurement.wafer_no.like(f"%{keyword}%"))
         )
     
     # 최신 데이터 순으로 정렬

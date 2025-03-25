@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 import numpy as np
 from sqlalchemy.orm import Session
 from ..database import models
+from . import statistics as stats_service
 
 def calculate_control_limits(values: List[float], sigma_level: int = 3) -> Dict[str, float]:
     """
@@ -138,6 +139,7 @@ def detect_nelson_rules(values: List[float], cl: float, ucl: float, lcl: float) 
     
     return patterns
 
+# analyze_spc 함수 수정
 def analyze_spc(db: Session, target_id: int, days: int = 30) -> Dict[str, Any]:
     """
     특정 타겟에 대한 SPC 분석 수행
@@ -208,7 +210,7 @@ def analyze_spc(db: Session, target_id: int, days: int = 30) -> Dict[str, Any]:
         models.Spec.is_active == True
     ).first()
     
-    # 결과 반환
+    # 결과 딕셔너리 초기화
     result = {
         "target_id": target_id,
         "sample_count": len(measurements),
@@ -225,11 +227,18 @@ def analyze_spc(db: Session, target_id: int, days: int = 30) -> Dict[str, Any]:
         "position_patterns": position_patterns
     }
     
+    # SPEC 및 공정 능력 지수 추가
     if active_spec:
         result["spec"] = {
             "lsl": active_spec.lsl,
-            "usl": active_spec.usl
+            "usl": active_spec.usl,
+            "target": (active_spec.usl + active_spec.lsl) / 2  # 타겟 추가
         }
+        
+        # 공정 능력 지수 계산 및 추가
+        result["process_capability"] = stats_service.calculate_process_capability(
+            values, active_spec.lsl, active_spec.usl
+        )
     
     return result
 

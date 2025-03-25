@@ -133,7 +133,8 @@
         }
     }
     
-    // 필터 파라미터 수집 함수 수정
+    // frontend/js/view.js 파일의 getFilterParams 함수 수정
+
     function getFilterParams() {
         const productGroupId = document.getElementById('product-group').value;
         const processId = document.getElementById('process').value;
@@ -153,7 +154,6 @@
         if (targetId) params.target_id = targetId;
         
         // 장비 선택 시, 세 가지 장비 타입 중 어느 것으로 필터링할지 선택 가능
-        // (백엔드는 OR 조건으로 처리)
         if (equipmentId) params.equipment_id = equipmentId;
         
         if (keyword) params.keyword = keyword;
