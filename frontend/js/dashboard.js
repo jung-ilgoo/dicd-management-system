@@ -49,7 +49,7 @@ function setupEventListeners() {
     }
 }
 
-// 공정능력지수 히트맵 로드
+// 기존 loadCpkHeatmap 함수를 아래 코드로 교체
 async function loadCpkHeatmap() {
     try {
         // 로딩 표시
@@ -62,53 +62,87 @@ async function loadCpkHeatmap() {
         </div>
         `;
         
-        // 모든 제품군 가져오기
-        const productGroups = await api.getProductGroups();
-        
-        // 히트맵 데이터 구성
+        // 히트맵 데이터 초기화
         cpkHeatmapData = [];
         
-        // 각 제품군에 대해 공정 및 타겟 정보 가져오기
-        for (const productGroup of productGroups) {
-            const processes = await api.getProcesses(productGroup.id);
-            
-            for (const process of processes) {
-                const targets = await api.getTargets(process.id);
+        // 제품군 목록 한 번에 가져오기 
+        const productGroups = await api.getProductGroups();
+        
+        // 모든 공정 정보 병렬로 가져오기
+        const processPromises = productGroups.map(productGroup => 
+            api.getProcesses(productGroup.id).then(processes => 
+                ({ productGroup, processes })
+            )
+        );
+        
+        const processResults = await Promise.all(processPromises);
+        
+        // 모든 타겟 정보 병렬로 가져오기 
+        const targetPromises = [];
+        processResults.forEach(result => {
+            result.processes.forEach(process => {
+                targetPromises.push(
+                    api.getTargets(process.id).then(targets => 
+                        ({ 
+                            productGroup: result.productGroup, 
+                            process, 
+                            targets 
+                        })
+                    )
+                );
+            });
+        });
+        
+        const targetResults = await Promise.all(targetPromises);
+        
+        // 각 타겟에 대한 통계 정보 한 번에 요청 (병렬 처리)
+        const statisticsPromises = [];
+        const targetMap = {};  // 타겟 ID를 키로 하는 맵 (통계 결과와 연결하기 위함)
+        
+        targetResults.forEach(result => {
+            result.targets.forEach(target => {
+                // 통계 정보 가져오기 (비동기)
+                statisticsPromises.push(
+                    api.getTargetStatistics(target.id)
+                        .then(stats => ({ targetId: target.id, stats }))
+                        .catch(error => {
+                            console.warn(`타겟 ${target.id}에 대한 통계 정보를 가져올 수 없습니다.`, error);
+                            return { targetId: target.id, stats: null };
+                        })
+                );
                 
-                for (const target of targets) {
-                    try {
-                        // 통계 정보 가져오기
-                        const stats = await api.getTargetStatistics(target.id);
-                        
-                        // 공정능력지수 추출
-                        let cpk = null;
-                        if (stats && stats.process_capability && stats.process_capability.cpk !== undefined) {
-                            cpk = stats.process_capability.cpk;
-                        }
-                        
-                        // 히트맵 데이터에 추가
-                        cpkHeatmapData.push({
-                            productGroup: productGroup.name,
-                            process: process.name,
-                            target: target.name,
-                            cpk: cpk,
-                            targetId: target.id
-                        });
-                    } catch (error) {
-                        console.warn(`타겟 ${target.id}에 대한 통계 정보를 가져올 수 없습니다.`, error);
-                        
-                        // 오류가 있어도 데이터에는 추가 (cpk = null)
-                        cpkHeatmapData.push({
-                            productGroup: productGroup.name,
-                            process: process.name,
-                            target: target.name,
-                            cpk: null,
-                            targetId: target.id
-                        });
-                    }
-                }
+                // 타겟 정보 맵에 저장
+                targetMap[target.id] = {
+                    productGroup: result.productGroup,
+                    process: result.process,
+                    target
+                };
+            });
+        });
+        
+        // 모든 통계 정보 요청을 병렬로 처리하고 결과 받기
+        const statisticsResults = await Promise.all(statisticsPromises);
+        
+        // 모든 데이터를 결합하여 히트맵 데이터 생성
+        statisticsResults.forEach(({ targetId, stats }) => {
+            const targetInfo = targetMap[targetId];
+            if (!targetInfo) return;
+            
+            // 공정능력지수 추출
+            let cpk = null;
+            if (stats && stats.process_capability && stats.process_capability.cpk !== undefined) {
+                cpk = stats.process_capability.cpk;
             }
-        }
+            
+            // 히트맵 데이터에 추가
+            cpkHeatmapData.push({
+                productGroup: targetInfo.productGroup.name,
+                process: targetInfo.process.name,
+                target: targetInfo.target.name,
+                cpk: cpk,
+                targetId: targetId
+            });
+        });
         
         // 히트맵 렌더링
         renderCpkHeatmap();
@@ -171,36 +205,69 @@ function renderCpkHeatmap() {
         }
     });
     
-    // 히트맵 HTML 생성
-    let heatmapHtml = '<div class="row">';
+    // DocumentFragment 생성 (메모리에서만 존재하는 DOM 조각)
+    const fragment = document.createDocumentFragment();
+    
+    // 최상위 row 생성
+    const rowDiv = document.createElement('div');
+    rowDiv.className = 'row';
+    fragment.appendChild(rowDiv);
     
     // 왼쪽 영역 (타겟 수가 많은 IC)
-    heatmapHtml += '<div class="col-md-9">';
-    heatmapHtml += '<div class="row">';
+    const leftCol = document.createElement('div');
+    leftCol.className = 'col-md-9';
+    rowDiv.appendChild(leftCol);
+    
+    const leftRowDiv = document.createElement('div');
+    leftRowDiv.className = 'row';
+    leftCol.appendChild(leftRowDiv);
     
     // 타겟 수가 많은 IC들의 카드 생성
     largeICs.forEach(ic => {
-        heatmapHtml += `
-        <div class="col-md-6 mb-2">
-            <div class="card card-outline card-primary h-100">
-                <div class="card-header py-1">
-                    <h3 class="card-title font-weight-bold">${ic}</h3>
-                </div>
-                <div class="card-body p-0">
-                    <div class="treemap-container">
-        `;
+        const colDiv = document.createElement('div');
+        colDiv.className = 'col-md-6 mb-2';
+        
+        const cardDiv = document.createElement('div');
+        cardDiv.className = 'card card-outline card-primary h-100';
+        colDiv.appendChild(cardDiv);
+        
+        const cardHeader = document.createElement('div');
+        cardHeader.className = 'card-header py-1';
+        cardDiv.appendChild(cardHeader);
+        
+        const cardTitle = document.createElement('h3');
+        cardTitle.className = 'card-title font-weight-bold';
+        cardTitle.textContent = ic;
+        cardHeader.appendChild(cardTitle);
+        
+        const cardBody = document.createElement('div');
+        cardBody.className = 'card-body p-0';
+        cardDiv.appendChild(cardBody);
+        
+        const treemapContainer = document.createElement('div');
+        treemapContainer.className = 'treemap-container';
+        cardBody.appendChild(treemapContainer);
         
         // 각 공정별 블록 생성
         Object.keys(groupedByIC[ic]).forEach(process => {
             const targets = groupedByIC[ic][process];
             
-            heatmapHtml += `
-            <div class="process-block">
-                <div class="process-header">
-                    <span class="font-weight-bold">${process}</span>
-                </div>
-                <div class="target-container">
-            `;
+            const processBlock = document.createElement('div');
+            processBlock.className = 'process-block';
+            treemapContainer.appendChild(processBlock);
+            
+            const processHeader = document.createElement('div');
+            processHeader.className = 'process-header';
+            processBlock.appendChild(processHeader);
+            
+            const processName = document.createElement('span');
+            processName.className = 'font-weight-bold';
+            processName.textContent = process;
+            processHeader.appendChild(processName);
+            
+            const targetContainer = document.createElement('div');
+            targetContainer.className = 'target-container';
+            processBlock.appendChild(targetContainer);
             
             // 각 타겟별 블록 생성
             targets.forEach(item => {
@@ -231,59 +298,82 @@ function renderCpkHeatmap() {
                     status = '매우 부적합';
                 }
                 
-                heatmapHtml += `
-                <div class="target-block" style="background-color: ${bgColor};">
-                    <div class="target-value" style="color: ${textColor};">${item.target}</div>
-                    <div class="cpk-value" style="color: ${textColor};">
-                        ${item.cpk !== null ? item.cpk.toFixed(3) : '-'}
-                    </div>
-                    <div class="status-badge" style="color: ${textColor};">${status}</div>
-                </div>
-                `;
+                const targetBlock = document.createElement('div');
+                targetBlock.className = 'target-block';
+                targetBlock.style.backgroundColor = bgColor;
+                targetContainer.appendChild(targetBlock);
+                
+                const targetValue = document.createElement('div');
+                targetValue.className = 'target-value';
+                targetValue.style.color = textColor;
+                targetValue.textContent = item.target;
+                targetBlock.appendChild(targetValue);
+                
+                const cpkValue = document.createElement('div');
+                cpkValue.className = 'cpk-value';
+                cpkValue.style.color = textColor;
+                cpkValue.textContent = item.cpk !== null ? item.cpk.toFixed(3) : '-';
+                targetBlock.appendChild(cpkValue);
+                
+                const statusBadge = document.createElement('div');
+                statusBadge.className = 'status-badge';
+                statusBadge.style.color = textColor;
+                statusBadge.textContent = status;
+                targetBlock.appendChild(statusBadge);
             });
-            
-            heatmapHtml += `
-                </div>
-            </div>
-            `;
         });
         
-        heatmapHtml += `
-                    </div>
-                </div>
-            </div>
-        </div>
-        `;
+        leftRowDiv.appendChild(colDiv);
     });
     
-    heatmapHtml += '</div>'; // 왼쪽 영역 row 종료
-    heatmapHtml += '</div>'; // 왼쪽 영역 col-md-9 종료
-    
     // 오른쪽 영역 (타겟 수가 적은 IC)
-    heatmapHtml += '<div class="col-md-3">';
+    const rightCol = document.createElement('div');
+    rightCol.className = 'col-md-3';
+    rowDiv.appendChild(rightCol);
     
     // 타겟 수가 적은 IC들의 카드 생성 (세로로 배치)
     smallICs.forEach(ic => {
-        heatmapHtml += `
-        <div class="card card-outline card-secondary mb-2">
-            <div class="card-header py-1 bg-light">
-                <h3 class="card-title font-weight-bold">${ic}</h3>
-            </div>
-            <div class="card-body p-0">
-                <div class="small-treemap-container">
-        `;
+        const cardDiv = document.createElement('div');
+        cardDiv.className = 'card card-outline card-secondary mb-2';
+        rightCol.appendChild(cardDiv);
+        
+        const cardHeader = document.createElement('div');
+        cardHeader.className = 'card-header py-1 bg-light';
+        cardDiv.appendChild(cardHeader);
+        
+        const cardTitle = document.createElement('h3');
+        cardTitle.className = 'card-title font-weight-bold';
+        cardTitle.textContent = ic;
+        cardHeader.appendChild(cardTitle);
+        
+        const cardBody = document.createElement('div');
+        cardBody.className = 'card-body p-0';
+        cardDiv.appendChild(cardBody);
+        
+        const treemapContainer = document.createElement('div');
+        treemapContainer.className = 'small-treemap-container';
+        cardBody.appendChild(treemapContainer);
         
         // 각 공정별 블록 생성 (작은 영역)
         Object.keys(groupedByIC[ic]).forEach(process => {
             const targets = groupedByIC[ic][process];
             
-            heatmapHtml += `
-            <div class="small-process-block">
-                <div class="small-process-header">
-                    <span class="font-weight-bold">${process}</span>
-                </div>
-                <div class="small-target-container">
-            `;
+            const processBlock = document.createElement('div');
+            processBlock.className = 'small-process-block';
+            treemapContainer.appendChild(processBlock);
+            
+            const processHeader = document.createElement('div');
+            processHeader.className = 'small-process-header';
+            processBlock.appendChild(processHeader);
+            
+            const processName = document.createElement('span');
+            processName.className = 'font-weight-bold';
+            processName.textContent = process;
+            processHeader.appendChild(processName);
+            
+            const targetContainer = document.createElement('div');
+            targetContainer.className = 'small-target-container';
+            processBlock.appendChild(targetContainer);
             
             // 각 타겟별 블록 생성 (작은 영역)
             targets.forEach(item => {
@@ -308,33 +398,30 @@ function renderCpkHeatmap() {
                     textColor = '#721c24'; // 진한 빨간색 텍스트
                 }
                 
-                heatmapHtml += `
-                <div class="small-target-block" style="background-color: ${bgColor};">
-                    <div class="small-target-value" style="color: ${textColor};">${item.target}</div>
-                    <div class="small-cpk-value" style="color: ${textColor};">
-                        ${item.cpk !== null ? item.cpk.toFixed(3) : '-'}
-                    </div>
-                </div>
-                `;
+                const targetBlock = document.createElement('div');
+                targetBlock.className = 'small-target-block';
+                targetBlock.style.backgroundColor = bgColor;
+                targetContainer.appendChild(targetBlock);
+                
+                const targetValue = document.createElement('div');
+                targetValue.className = 'small-target-value';
+                targetValue.style.color = textColor;
+                targetValue.textContent = item.target;
+                targetBlock.appendChild(targetValue);
+                
+                const cpkValue = document.createElement('div');
+                cpkValue.className = 'small-cpk-value';
+                cpkValue.style.color = textColor;
+                cpkValue.textContent = item.cpk !== null ? item.cpk.toFixed(3) : '-';
+                targetBlock.appendChild(cpkValue);
             });
-            
-            heatmapHtml += `
-                </div>
-            </div>
-            `;
         });
-        
-        heatmapHtml += `
-                </div>
-            </div>
-        </div>
-        `;
     });
     
-    heatmapHtml += '</div>'; // 오른쪽 영역 col-md-3 종료
-    heatmapHtml += '</div>'; // 전체 row 종료
-    
-    document.getElementById('cpk-heatmap-container').innerHTML = heatmapHtml;
+    // 기존 내용 지우고 새로운 내용 추가
+    const container = document.getElementById('cpk-heatmap-container');
+    container.innerHTML = '';
+    container.appendChild(fragment);
 }
 
 // 모니터링 타겟 초기화

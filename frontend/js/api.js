@@ -4,10 +4,48 @@ class API {
     constructor(config) {
         this.baseUrl = config.BASE_URL;
         this.endpoints = config.ENDPOINTS;
+
+        // 캐시 저장소 추가
+        this.cache = {
+            data: {},
+            timeout: 300000 // 5분 캐시 타임아웃
+        };
     }
     
-    // GET 요청
+    // 캐시 키 생성 메서드
+    getCacheKey(endpoint, params = {}) {
+        return `${endpoint}:${JSON.stringify(params)}`;
+    }
+
+    // 캐시된 데이터 가져오기
+    getCachedData(endpoint, params = {}) {
+        const key = this.getCacheKey(endpoint, params);
+        const cachedItem = this.cache.data[key];
+        
+        if (cachedItem && (Date.now() - cachedItem.timestamp) < this.cache.timeout) {
+            return cachedItem.data;
+        }
+        
+        return null;
+    }
+
+    // 데이터 캐싱
+    setCachedData(endpoint, params = {}, data) {
+        const key = this.getCacheKey(endpoint, params);
+        this.cache.data[key] = {
+            data,
+            timestamp: Date.now()
+        };
+    }
+
+    // GET 요청 (수정된 버전)
     async get(endpoint, params = {}) {
+        // 캐시에서 먼저 확인
+        const cachedData = this.getCachedData(endpoint, params);
+        if (cachedData) {
+            return cachedData;
+        }
+        
         // URL 쿼리 파라미터 생성
         const queryParams = new URLSearchParams();
         Object.keys(params).forEach(key => {
@@ -24,7 +62,12 @@ class API {
             if (!response.ok) {
                 throw new Error(`HTTP error! Status: ${response.status}`);
             }
-            return await response.json();
+            const data = await response.json();
+            
+            // 데이터 캐싱
+            this.setCachedData(endpoint, params, data);
+            
+            return data;
         } catch (error) {
             console.error('API GET 요청 오류:', error);
             throw error;
