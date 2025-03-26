@@ -123,6 +123,9 @@
 
             // SPC 분석 API 호출
             const result = await api.analyzeSpc(selectedTargetId, days);
+
+            // API 응답 로깅 (디버깅용)
+            console.log(`타겟 ID ${selectedTargetId}에 대한 SPC 분석 API 응답:`, result);
             
             // 결과 표시
             updateSpcResults(result);
@@ -141,6 +144,10 @@
     
     // SPC 분석 결과 업데이트
     function updateSpcResults(result) {
+        // 패턴 정보 로깅 (디버깅용)
+        console.log("SPC 분석 전체 결과:", result);
+        console.log("감지된 SPC 패턴:", result.patterns);
+
         // 결과 체크
         if (!result || result.sample_count === 0) {
             document.getElementById('control-chart-container').innerHTML = `
@@ -626,6 +633,9 @@
     
     // 패턴 감지 결과 테이블 업데이트
     function updatePatternsTable(patterns) {
+        // 패턴 데이터 로깅 (디버깅용)
+        console.log("패턴 테이블 업데이트 - 입력 데이터:", patterns);
+        
         // 테이블 업데이트
         const tableBody = document.querySelector('#patterns-table tbody');
         
