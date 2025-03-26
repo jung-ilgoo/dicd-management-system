@@ -32,7 +32,10 @@ def calculate_control_limits(values: List[float], sigma_level: int = 3) -> Dict[
         "lcl": round(lcl, 3)
     }
 
-def detect_nelson_rules(values: List[float], cl: float, ucl: float, lcl: float) -> List[Dict[str, Any]]:
+# detect_nelson_rules 함수 내에서 패턴 객체를 생성하는 부분 수정
+# "position" 대신 실제 측정 데이터의 LOT NO를 포함하도록 수정
+
+def detect_nelson_rules(values: List[float], cl: float, ucl: float, lcl: float, lot_nos: List[str]) -> List[Dict[str, Any]]:
     """
     Nelson Rules에 기반한 패턴 감지
     """
@@ -58,6 +61,7 @@ def detect_nelson_rules(values: List[float], cl: float, ucl: float, lcl: float) 
                 "rule": 1,
                 "description": "한 점이 관리 한계선을 벗어남",
                 "position": i,
+                "lot_no": lot_nos[i] if i < len(lot_nos) else f"포인트 {i+1}",
                 "value": value
             })
     
@@ -165,19 +169,21 @@ def analyze_spc(db: Session, target_id: int, days: int = 30) -> Dict[str, Any]:
     # 평균값 추출
     values = [m.avg_value for m in measurements]
     dates = [m.created_at for m in measurements]
+    lot_nos = [m.lot_no for m in measurements]  # LOT NO 추출
     
     # 관리 한계선 계산
     control_limits = calculate_control_limits(values)
     
-    # 패턴 감지
+    # 패턴 감지와 LOT NO 연결
     patterns = []
     if control_limits["cl"] is not None:
-        patterns = detect_nelson_rules(
-            values, 
-            control_limits["cl"], 
-            control_limits["ucl"], 
-            control_limits["lcl"]
-        )
+        patterns = detect_nelson_rules(values, control_limits["cl"], control_limits["ucl"], control_limits["lcl"], lot_nos)
+        
+        # 패턴에 LOT NO 정보 추가
+        for pattern in patterns:
+            pos = pattern.get("position", 0)
+            if 0 <= pos < len(lot_nos):
+                pattern["lot_no"] = lot_nos[pos]
     
     # 위치별 데이터도 분석
     position_values = {
@@ -200,7 +206,8 @@ def analyze_spc(db: Session, target_id: int, days: int = 30) -> Dict[str, Any]:
                 pos_values,
                 pos_cl["cl"],
                 pos_cl["ucl"],
-                pos_cl["lcl"]
+                pos_cl["lcl"],
+                lot_nos
             )
             position_patterns[position] = pos_patterns
     
@@ -216,7 +223,8 @@ def analyze_spc(db: Session, target_id: int, days: int = 30) -> Dict[str, Any]:
         "sample_count": len(measurements),
         "data": {
             "values": values,
-            "dates": [d.isoformat() for d in dates]
+            "dates": [d.isoformat() for d in dates],
+            "lot_nos": lot_nos
         },
         "control_limits": control_limits,
         "patterns": patterns,

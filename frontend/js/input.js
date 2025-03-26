@@ -471,26 +471,26 @@
         });
     
         
-        // 측정값 입력 이벤트
+        // 측정값 입력 필드에 소수점 3자리 제한 이벤트 추가
         document.querySelectorAll('.measurement-value').forEach(input => {
-            input.addEventListener('input', function() {
-                // SPEC 검사 수행
-                if (currentSpec) {
-                    const value = parseFloat(this.value);
-                    
-                    if (isNaN(value)) {
-                        this.classList.remove('is-invalid', 'is-valid');
-                        return;
-                    }
-                    
-                    if (value < currentSpec.lsl || value > currentSpec.usl) {
-                        this.classList.remove('is-valid');
-                        this.classList.add('is-invalid');
-                    } else {
-                        this.classList.remove('is-invalid');
-                        this.classList.add('is-valid');
+            input.addEventListener('input', function(e) {
+                // 현재 커서 위치 저장
+                let cursorPos = this.selectionStart;
+                let value = this.value;
+                
+                // 소수점이 있는 경우
+                if (value.includes('.')) {
+                    const parts = value.split('.');
+                    // 소수점 뒤 부분이 3자리 초과인 경우 잘라냄
+                    if (parts[1].length > 3) {
+                        this.value = `${parts[0]}.${parts[1].substring(0, 3)}`;
+                        // 커서가 최대 길이 이상이면 맨 뒤로, 아니면 현재 위치 유지
+                        cursorPos = (cursorPos > this.value.length) ? this.value.length : cursorPos;
                     }
                 }
+                
+                // 커서 위치 복원
+                this.setSelectionRange(cursorPos, cursorPos);
             });
         });
     }

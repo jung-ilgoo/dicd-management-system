@@ -187,7 +187,8 @@
         `;
         
         // 차트 데이터 준비
-        const labels = data.data.dates.map(date => date.split('T')[0]);
+        // labels를 날짜에서 LOT NO로 변경
+        const labels = data.data.lot_nos || data.data.dates.map(date => date.split('T')[0]);
         const values = data.data.values;
         
         // Chart.js 설정
@@ -344,7 +345,17 @@
                     x: {
                         title: {
                             display: true,
-                            text: '날짜'
+                            text: 'LOT NO'  // X축 제목 변경
+                        },
+                        ticks: {
+                            // LOT NO를 90도 회전시켜 세로로 표시
+                            maxRotation: 90,
+                            minRotation: 90,
+                            autoSkip: true,
+                            maxTicksLimit: 30,
+                            font: {
+                                size: 10
+                            }
                         }
                     },
                     y: {
@@ -630,11 +641,14 @@
         let tableHtml = '';
         
         patterns.forEach(pattern => {
+            // 위치 대신 LOT NO를 표시 (backend에서 전달한 경우)
+            const lotNoDisplay = pattern.lot_no || `LOT ${pattern.position + 1}`;
+            
             tableHtml += `
             <tr>
                 <td>Rule ${pattern.rule}</td>
                 <td>${pattern.description}</td>
-                <td>${pattern.position + 1}</td>
+                <td>${lotNoDisplay}</td>
                 <td>${pattern.value ? pattern.value.toFixed(3) : (pattern.length ? `길이: ${pattern.length}` : '-')}</td>
             </tr>
             `;

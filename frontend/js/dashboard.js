@@ -7,6 +7,9 @@ let monitoringTargets = [];
 function initDashboard() {
     // 공정능력지수 히트맵 로드
     loadCpkHeatmap();
+
+    // SPC 알림 로드 (추가)
+    loadSpcAlerts();
     
     // 모니터링 타겟 로드 및 설정
     initMonitoringTargets();
@@ -747,6 +750,147 @@ const DASHBOARD_UTILS = {
         return `<div class="alert alert-danger"><i class="fas fa-exclamation-circle mr-1"></i> ${message}</div>`;
     }
 };
+
+// SPC 알림 로드
+async function loadSpcAlerts() {
+    try {
+        // 로딩 표시
+        document.getElementById('spc-alerts-container').innerHTML = `
+        <div class="text-center py-3">
+            <div class="spinner-border text-primary" role="status">
+                <span class="sr-only">로딩 중...</span>
+            </div>
+            <p class="mt-2">SPC 알림 로드 중...</p>
+        </div>
+        `;
+        
+        // 모든 제품군 가져오기
+        const productGroups = await api.getProductGroups();
+        
+        // SPC 알림 목록
+        let allAlerts = [];
+        
+        // 각 제품군에 대해 공정, 타겟 정보 가져와서 SPC 분석
+        for (const productGroup of productGroups) {
+            const processes = await api.getProcesses(productGroup.id);
+            
+            for (const process of processes) {
+                const targets = await api.getTargets(process.id);
+                
+                for (const target of targets) {
+                    try {
+                        // SPC 분석 데이터 가져오기 (최근 7일)
+                        const spcResult = await api.analyzeSpc(target.id, 7);
+                        
+                        // 패턴이 감지된 경우
+                        if (spcResult.patterns && spcResult.patterns.length > 0) {
+                            // 패턴 정보와 타겟 정보 결합
+                            const alerts = spcResult.patterns.map(pattern => ({
+                                ...pattern,
+                                targetId: target.id,
+                                targetName: target.name,
+                                processName: process.name,
+                                productGroupName: productGroup.name,
+                                date: spcResult.data.dates[pattern.position]
+                            }));
+                            
+                            allAlerts = [...allAlerts, ...alerts];
+                        }
+                    } catch (error) {
+                        console.warn(`타겟 ${target.id}에 대한 SPC 분석을 가져올 수 없습니다.`, error);
+                    }
+                }
+            }
+        }
+        
+        // 알림이 없는 경우
+        if (allAlerts.length === 0) {
+            document.getElementById('spc-alerts-container').innerHTML = `
+            <div class="alert alert-success m-3">
+                <i class="fas fa-check-circle mr-1"></i> 현재 감지된 SPC 규칙 위반이 없습니다.
+            </div>
+            `;
+            return;
+        }
+        
+        // 날짜별로 정렬 (최신순)
+        allAlerts.sort((a, b) => new Date(b.date) - new Date(a.date));
+        
+        // 최대 10개만 표시
+        const topAlerts = allAlerts.slice(0, 10);
+        
+        // 테이블 생성
+        let alertsHtml = `
+        <div class="table-responsive">
+            <table class="table table-striped table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>날짜</th>
+                        <th>타겟</th>
+                        <th>규칙</th>
+                        <th>설명</th>
+                        <th>위치</th>
+                        <th>심각도</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        
+        // 각 알림 행 추가
+        topAlerts.forEach(alert => {
+            // 알림 날짜 포맷팅
+            const alertDate = alert.date ? alert.date.split('T')[0] : '날짜 없음';
+            
+            // 심각도 결정 (규칙 번호에 따라)
+            let severityClass = '';
+            let severityText = '';
+            
+            // 규칙 번호에 따른 심각도 설정
+            switch (alert.rule) {
+                case 1: // 한 점이 관리 한계선을 벗어남
+                    severityClass = 'danger';
+                    severityText = '높음';
+                    break;
+                case 2: // 9개 연속 점이 중심선의 같은 쪽에 있음
+                case 5: // 2점 중 2점이 3-시그마 구간의 같은 쪽에 있음
+                    severityClass = 'warning';
+                    severityText = '중간';
+                    break;
+                default:
+                    severityClass = 'info';
+                    severityText = '낮음';
+            }
+            
+            alertsHtml += `
+            <tr>
+                <td>${alertDate}</td>
+                <td>${alert.productGroupName} - ${alert.processName} - ${alert.targetName}</td>
+                <td>Rule ${alert.rule}</td>
+                <td>${alert.description}</td>
+                <td>${alert.position}</td>
+                <td><span class="badge badge-${severityClass}">${severityText}</span></td>
+            </tr>
+            `;
+        });
+        
+        alertsHtml += `
+                </tbody>
+            </table>
+        </div>
+        `;
+        
+        // 알림 테이블 표시
+        document.getElementById('spc-alerts-container').innerHTML = alertsHtml;
+        
+    } catch (error) {
+        console.error('SPC 알림 로드 실패:', error);
+        document.getElementById('spc-alerts-container').innerHTML = `
+        <div class="alert alert-danger m-3">
+            <i class="fas fa-exclamation-circle mr-1"></i> SPC 알림을 불러오는 중 오류가 발생했습니다.
+        </div>
+        `;
+    }
+}
 
 // 페이지 로드 시 대시보드 초기화
 document.addEventListener('DOMContentLoaded', initDashboard);

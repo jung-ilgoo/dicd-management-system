@@ -2,9 +2,14 @@
 (function() {
     // 전역 변수
     let currentPage = 1;
-    const pageSize = 10;
+    const pageSize = 20;
     let totalItems = 0;
     let measurementsCache = [];
+    // 전역 캐시 추가
+    let targetsCache = {};
+    let processesCache = {};
+    let productGroupsCache = {};
+    let equipmentsCache = {};
     
     // 페이지 초기화
     async function initViewPage() {
@@ -163,7 +168,7 @@
         return params;
     }
     
-    // 테이블 업데이트 함수 내 장비 정보 부분 수정
+    // 테이블 업데이트 함수 최적화
     async function updateDataTable(measurements) {
         if (!measurements || measurements.length === 0) {
             document.getElementById('data-table-body').innerHTML = `
@@ -178,56 +183,119 @@
         
         let tableHtml = '';
         
-        // 각 측정 데이터에 대한 추가 정보 로드
+        // 필요한 모든 ID 목록 수집
+        const targetIds = new Set();
+        const processIds = new Set();
+        const productGroupIds = new Set();
+        const equipmentIds = new Set();
+        
+        measurements.forEach(measurement => {
+            targetIds.add(measurement.target_id);
+            if (measurement.coating_equipment_id) equipmentIds.add(measurement.coating_equipment_id);
+            if (measurement.exposure_equipment_id) equipmentIds.add(measurement.exposure_equipment_id);
+            if (measurement.development_equipment_id) equipmentIds.add(measurement.development_equipment_id);
+        });
+        
+        // 캐시에 없는 타겟 정보 병렬로 로드
+        const targetFetchPromises = Array.from(targetIds)
+            .filter(id => !targetsCache[id])
+            .map(async id => {
+                try {
+                    const target = await api.get(`${API_CONFIG.ENDPOINTS.TARGETS}/${id}`);
+                    targetsCache[id] = target;
+                    processIds.add(target.process_id);
+                } catch (error) {
+                    console.error(`타겟 ID ${id} 정보 로드 실패:`, error);
+                }
+            });
+        
+        await Promise.all(targetFetchPromises);
+        
+        // 캐시에 없는 공정 정보 병렬로 로드
+        const processFetchPromises = Array.from(processIds)
+            .filter(id => !processesCache[id])
+            .map(async id => {
+                try {
+                    const process = await api.get(`${API_CONFIG.ENDPOINTS.PROCESSES}/${id}`);
+                    processesCache[id] = process;
+                    productGroupIds.add(process.product_group_id);
+                } catch (error) {
+                    console.error(`공정 ID ${id} 정보 로드 실패:`, error);
+                }
+            });
+        
+        await Promise.all(processFetchPromises);
+        
+        // 캐시에 없는 제품군 정보 병렬로 로드
+        const productGroupFetchPromises = Array.from(productGroupIds)
+            .filter(id => !productGroupsCache[id])
+            .map(async id => {
+                try {
+                    const productGroup = await api.get(`${API_CONFIG.ENDPOINTS.PRODUCT_GROUPS}/${id}`);
+                    productGroupsCache[id] = productGroup;
+                } catch (error) {
+                    console.error(`제품군 ID ${id} 정보 로드 실패:`, error);
+                }
+            });
+        
+        // 캐시에 없는 장비 정보 병렬로 로드
+        const equipmentFetchPromises = Array.from(equipmentIds)
+            .filter(id => !equipmentsCache[id])
+            .map(async id => {
+                try {
+                    const equipment = await api.get(`${API_CONFIG.ENDPOINTS.EQUIPMENTS}/${id}`);
+                    equipmentsCache[id] = equipment;
+                } catch (error) {
+                    console.error(`장비 ID ${id} 정보 로드 실패:`, error);
+                }
+            });
+        
+        // 모든 필요한 데이터 병렬로 로드
+        await Promise.all([
+            ...productGroupFetchPromises,
+            ...equipmentFetchPromises
+        ]);
+        
+        // 이제 모든 필요한 데이터가 캐시에 있으므로, 측정 데이터 테이블 생성
         for (const measurement of measurements) {
             try {
-                // 타겟 정보 가져오기
-                const target = await api.get(`${API_CONFIG.ENDPOINTS.TARGETS}/${measurement.target_id}`);
+                const target = targetsCache[measurement.target_id];
+                if (!target) continue;
                 
-                // 공정 정보 가져오기
-                const process = await api.get(`${API_CONFIG.ENDPOINTS.PROCESSES}/${target.process_id}`);
+                const process = processesCache[target.process_id];
+                if (!process) continue;
                 
-                // 제품군 정보 가져오기
-                const productGroup = await api.get(`${API_CONFIG.ENDPOINTS.PRODUCT_GROUPS}/${process.product_group_id}`);
+                const productGroup = productGroupsCache[process.product_group_id];
+                if (!productGroup) continue;
                 
-                // 장비 정보 가져오기 - 세 가지 장비 모두 조회
-                let equipmentInfo = '';
+                // 장비 정보 생성
+                let equipmentNames = [];
                 
-                if (measurement.coating_equipment_id) {
-                    try {
-                        const equipment = await api.get(`${API_CONFIG.ENDPOINTS.EQUIPMENTS}/${measurement.coating_equipment_id}`);
-                        equipmentInfo += `코팅: ${equipment.name}<br>`;
-                    } catch (error) {
-                        console.warn(`장비 ID ${measurement.coating_equipment_id}에 대한 정보를 가져올 수 없습니다.`);
-                    }
+                if (measurement.coating_equipment_id && equipmentsCache[measurement.coating_equipment_id]) {
+                    equipmentNames.push(equipmentsCache[measurement.coating_equipment_id].name);
                 }
                 
-                if (measurement.exposure_equipment_id) {
-                    try {
-                        const equipment = await api.get(`${API_CONFIG.ENDPOINTS.EQUIPMENTS}/${measurement.exposure_equipment_id}`);
-                        equipmentInfo += `노광: ${equipment.name}<br>`;
-                    } catch (error) {
-                        console.warn(`장비 ID ${measurement.exposure_equipment_id}에 대한 정보를 가져올 수 없습니다.`);
-                    }
+                if (measurement.exposure_equipment_id && equipmentsCache[measurement.exposure_equipment_id]) {
+                    equipmentNames.push(equipmentsCache[measurement.exposure_equipment_id].name);
                 }
                 
-                if (measurement.development_equipment_id) {
-                    try {
-                        const equipment = await api.get(`${API_CONFIG.ENDPOINTS.EQUIPMENTS}/${measurement.development_equipment_id}`);
-                        equipmentInfo += `현상: ${equipment.name}`;
-                    } catch (error) {
-                        console.warn(`장비 ID ${measurement.development_equipment_id}에 대한 정보를 가져올 수 없습니다.`);
-                    }
+                if (measurement.development_equipment_id && equipmentsCache[measurement.development_equipment_id]) {
+                    equipmentNames.push(equipmentsCache[measurement.development_equipment_id].name);
                 }
                 
-                if (!equipmentInfo) {
-                    equipmentInfo = '-';
-                }
+                const equipmentInfo = equipmentNames.length > 0 ? equipmentNames.join(', ') : '-';
                 
                 // SPEC 정보 가져오기
                 let statusBadge = '<span class="badge badge-secondary">SPEC 없음</span>';
                 try {
-                    const spec = await api.getActiveSpec(measurement.target_id);
+                    // 캐시된 활성 SPEC 확인
+                    if (!window.activeSpecCache) window.activeSpecCache = {};
+                    
+                    if (!window.activeSpecCache[measurement.target_id]) {
+                        window.activeSpecCache[measurement.target_id] = await api.getActiveSpec(measurement.target_id);
+                    }
+                    
+                    const spec = window.activeSpecCache[measurement.target_id];
                     if (spec) {
                         statusBadge = UTILS.getStatusBadge(measurement.avg_value, spec.lsl, spec.usl);
                     }
@@ -242,7 +310,7 @@
                     <td>${productGroup.name}</td>
                     <td>${process.name}</td>
                     <td>${target.name}</td>
-                    <td>${equipmentInfo}</td>
+                    <td class="equipment-cell text-center">${equipmentInfo}</td>
                     <td>${measurement.device}</td>
                     <td>${measurement.lot_no}</td>
                     <td>${measurement.wafer_no}</td>
