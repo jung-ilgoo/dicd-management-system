@@ -206,6 +206,12 @@
             controlChart.destroy();
         }
         
+        // 시그마 구간 변수 초기화
+        let cl = null, ucl = null, lcl = null;
+        let sigma = null;
+        let zone_a_upper = null, zone_a_lower = null;
+        let zone_b_upper = null, zone_b_lower = null;
+        
         // 데이터셋 준비
         const datasets = [
             {
@@ -220,11 +226,61 @@
             }
         ];
         
-        // 관리 한계선 추가
-        if (data.control_limits) {
-            const cl = data.control_limits.cl;
-            const ucl = data.control_limits.ucl;
-            const lcl = data.control_limits.lcl;
+        // 차트 옵션 초기화
+        const chartOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'DICD 관리도 차트'
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false
+                },
+                legend: {
+                    position: 'top'
+                }
+            },
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: 'LOT NO'  // X축 제목 변경
+                    },
+                    ticks: {
+                        // LOT NO를 90도 회전시켜 세로로 표시
+                        maxRotation: 90,
+                        minRotation: 90,
+                        autoSkip: true,
+                        maxTicksLimit: 30,
+                        font: {
+                            size: 10
+                        }
+                    }
+                },
+                y: {
+                    title: {
+                        display: true,
+                        text: 'DICD 값'
+                    }
+                }
+            }
+        };
+        
+        // 관리 한계선이 있는 경우
+        if (data.control_limits && data.control_limits.cl !== undefined) {
+            cl = data.control_limits.cl;
+            ucl = data.control_limits.ucl;
+            lcl = data.control_limits.lcl;
+            
+            // 시그마 구간 계산 (3-시그마 기준)
+            sigma = (ucl - cl) / 3;
+            zone_a_upper = cl + (2 * sigma);
+            zone_a_lower = cl - (2 * sigma);
+            zone_b_upper = cl + sigma;
+            zone_b_lower = cl - sigma;
             
             // 중심선 추가
             datasets.push({
@@ -258,6 +314,118 @@
                 pointRadius: 0,
                 fill: false
             });
+            
+            // 시그마 구간이 계산된 경우에만 툴팁 콜백과 시그마 구간 표시 추가
+            if (sigma !== null) {
+                // 툴팁 콜백 추가
+                chartOptions.plugins.tooltip.callbacks = {
+                    label: function(context) {
+                        let label = context.dataset.label || '';
+                        
+                        if (label === 'DICD 값') {
+                            const value = context.parsed.y;
+                            let zoneInfo = '';
+                            
+                            // 시그마 구간 표시
+                            if (value > zone_a_upper || value < zone_a_lower) {
+                                zoneInfo = ' (Zone A)';
+                            } else if (value > zone_b_upper || value < zone_b_lower) {
+                                zoneInfo = ' (Zone B)';
+                            } else {
+                                zoneInfo = ' (Zone C)';
+                            }
+                            
+                            return `${label}: ${value.toFixed(3)}${zoneInfo}`;
+                        }
+                        
+                        return `${label}: ${context.parsed.y.toFixed(3)}`;
+                    }
+                };
+                
+                // 시그마 구간 애노테이션 추가
+                chartOptions.plugins.annotation = {
+                    annotations: [
+                        {
+                            // Zone A (2σ ~ 3σ) - 상단
+                            type: 'box',
+                            drawTime: 'beforeDatasetsDraw',
+                            xScaleID: 'x',
+                            yScaleID: 'y',
+                            xMin: 0,
+                            xMax: labels.length - 1,
+                            yMin: zone_a_upper,
+                            yMax: ucl,
+                            backgroundColor: 'rgba(255, 200, 200, 0.2)',
+                            borderWidth: 0
+                        },
+                        {
+                            // Zone A (2σ ~ 3σ) - 하단
+                            type: 'box',
+                            drawTime: 'beforeDatasetsDraw',
+                            xScaleID: 'x',
+                            yScaleID: 'y',
+                            xMin: 0,
+                            xMax: labels.length - 1,
+                            yMin: lcl,
+                            yMax: zone_a_lower,
+                            backgroundColor: 'rgba(255, 200, 200, 0.2)',
+                            borderWidth: 0
+                        },
+                        {
+                            // Zone B (1σ ~ 2σ) - 상단
+                            type: 'box',
+                            drawTime: 'beforeDatasetsDraw',
+                            xScaleID: 'x',
+                            yScaleID: 'y',
+                            xMin: 0,
+                            xMax: labels.length - 1,
+                            yMin: zone_b_upper,
+                            yMax: zone_a_upper,
+                            backgroundColor: 'rgba(255, 230, 180, 0.2)',
+                            borderWidth: 0
+                        },
+                        {
+                            // Zone B (1σ ~ 2σ) - 하단
+                            type: 'box',
+                            drawTime: 'beforeDatasetsDraw',
+                            xScaleID: 'x',
+                            yScaleID: 'y',
+                            xMin: 0,
+                            xMax: labels.length - 1,
+                            yMin: zone_a_lower,
+                            yMax: zone_b_lower,
+                            backgroundColor: 'rgba(255, 230, 180, 0.2)',
+                            borderWidth: 0
+                        },
+                        {
+                            // Zone C (0 ~ 1σ) - 상단
+                            type: 'box',
+                            drawTime: 'beforeDatasetsDraw',
+                            xScaleID: 'x',
+                            yScaleID: 'y',
+                            xMin: 0,
+                            xMax: labels.length - 1,
+                            yMin: cl,
+                            yMax: zone_b_upper,
+                            backgroundColor: 'rgba(200, 255, 200, 0.2)',
+                            borderWidth: 0
+                        },
+                        {
+                            // Zone C (0 ~ 1σ) - 하단
+                            type: 'box',
+                            drawTime: 'beforeDatasetsDraw',
+                            xScaleID: 'x',
+                            yScaleID: 'y',
+                            xMin: 0,
+                            xMax: labels.length - 1,
+                            yMin: zone_b_lower,
+                            yMax: cl,
+                            backgroundColor: 'rgba(200, 255, 200, 0.2)',
+                            borderWidth: 0
+                        }
+                    ]
+                };
+            }
         }
         
         // SPEC 추가
@@ -332,50 +500,9 @@
                 labels: labels,
                 datasets: datasets
             },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    title: {
-                        display: true,
-                        text: 'DICD 관리도 차트'
-                    },
-                    tooltip: {
-                        mode: 'index',
-                        intersect: false
-                    },
-                    legend: {
-                        position: 'top'
-                    }
-                },
-                scales: {
-                    x: {
-                        title: {
-                            display: true,
-                            text: 'LOT NO'  // X축 제목 변경
-                        },
-                        ticks: {
-                            // LOT NO를 90도 회전시켜 세로로 표시
-                            maxRotation: 90,
-                            minRotation: 90,
-                            autoSkip: true,
-                            maxTicksLimit: 30,
-                            font: {
-                                size: 10
-                            }
-                        }
-                    },
-                    y: {
-                        title: {
-                            display: true,
-                            text: 'DICD 값'
-                        }
-                    }
-                }
-            }
+            options: chartOptions
         });
     }
-    
     // R 차트 생성
     function createRChart(data) {
         // 차트 컨테이너 준비
@@ -631,41 +758,180 @@
         `;
     }
     
-    // 패턴 감지 결과 테이블 업데이트
-    function updatePatternsTable(patterns) {
-        // 패턴 데이터 로깅 (디버깅용)
-        console.log("패턴 테이블 업데이트 - 입력 데이터:", patterns);
-        
-        // 테이블 업데이트
-        const tableBody = document.querySelector('#patterns-table tbody');
-        
-        if (!patterns || patterns.length === 0) {
-            tableBody.innerHTML = `
-            <tr>
-                <td colspan="4" class="text-center">패턴 감지 데이터가 없습니다.</td>
-            </tr>
-            `;
-            return;
-        }
-        
-        let tableHtml = '';
-        
-        patterns.forEach(pattern => {
-            // 위치 대신 LOT NO를 표시 (backend에서 전달한 경우)
-            const lotNoDisplay = pattern.lot_no || `LOT ${pattern.position + 1}`;
-            
-            tableHtml += `
-            <tr>
-                <td>Rule ${pattern.rule}</td>
-                <td>${pattern.description}</td>
-                <td>${lotNoDisplay}</td>
-                <td>${pattern.value ? pattern.value.toFixed(3) : (pattern.length ? `길이: ${pattern.length}` : '-')}</td>
-            </tr>
-            `;
-        });
-        
-        tableBody.innerHTML = tableHtml;
+    // updatePatternsTable 함수에 클릭 이벤트를 추가
+function updatePatternsTable(patterns) {
+    // 테이블 업데이트
+    const tableBody = document.querySelector('#patterns-table tbody');
+    
+    if (!patterns || patterns.length === 0) {
+        tableBody.innerHTML = `
+        <tr>
+            <td colspan="4" class="text-center">패턴 감지 데이터가 없습니다.</td>
+        </tr>
+        `;
+        return;
     }
+    
+    let tableHtml = '';
+    
+    patterns.forEach((pattern, index) => {
+        // 위치 대신 LOT NO를 표시 (backend에서 전달한 경우)
+        const lotNoDisplay = pattern.lot_no || `LOT ${pattern.position + 1}`;
+        
+        tableHtml += `
+        <tr data-pattern-index="${index}" class="pattern-row" style="cursor: pointer;">
+            <td>Rule ${pattern.rule}</td>
+            <td>${pattern.description}</td>
+            <td>${lotNoDisplay}</td>
+            <td>${pattern.value ? pattern.value.toFixed(3) : (pattern.length ? `길이: ${pattern.length}` : '-')}</td>
+        </tr>
+        `;
+    });
+    
+    tableBody.innerHTML = tableHtml;
+    
+    // 패턴 행 클릭 이벤트 추가
+    document.querySelectorAll('.pattern-row').forEach(row => {
+        row.addEventListener('click', function() {
+            const patternIndex = parseInt(this.getAttribute('data-pattern-index'));
+            highlightPattern(patterns[patternIndex]);
+            
+            // 선택된 행 강조
+            document.querySelectorAll('.pattern-row').forEach(r => r.classList.remove('table-primary'));
+            this.classList.add('table-primary');
+        });
+    });
+}
+
+// 패턴 강조 함수 추가
+function highlightPattern(pattern) {
+    if (!controlChart) return;
+    
+    // 기존 데이터셋 상태 저장
+    const originalDatasets = JSON.parse(JSON.stringify(controlChart.data.datasets));
+    
+    // 데이터셋 초기화 (기존 강조 제거)
+    controlChart.data.datasets = originalDatasets.filter(ds => !ds.patternHighlight);
+    
+    // 패턴 유형에 따라 강조 방식 결정
+    const highlightData = Array(controlChart.data.labels.length).fill(null);
+    let positions = [];
+    
+    switch (pattern.rule) {
+        case 1: // 한 점이 관리 한계선을 벗어남
+            positions = [pattern.position];
+            break;
+        case 2: // 9개 연속 점이 중심선의 같은 쪽에 있음
+            positions = Array.from({length: 9}, (_, i) => pattern.position + i);
+            break;
+        case 3: // 6개 연속 점이 증가하거나 감소함
+            positions = Array.from({length: 6}, (_, i) => pattern.position + i);
+            break;
+        case 4: // 14개 연속 점이 교대로 증가/감소함
+            positions = Array.from({length: 14}, (_, i) => pattern.position + i);
+            break;
+        case 5: // 2점 중 2점이 3-시그마 구간의 같은 쪽에 있음 (Zone A)
+            positions = Array.from({length: 2}, (_, i) => pattern.position + i);
+            break;
+        case 6: // 4점 중 4점이 2-시그마 구간의 같은 쪽에 있음 (Zone B)
+            positions = Array.from({length: 4}, (_, i) => pattern.position + i);
+            break;
+        case 7: // 15개 연속 점이 1-시그마 구간 안에 있음 (Zone C)
+            positions = Array.from({length: 15}, (_, i) => pattern.position + i);
+            break;
+        case 8: // 8개 연속 점이 1-시그마 구간 바깥에 있음
+            positions = Array.from({length: 8}, (_, i) => pattern.position + i);
+            break;
+    }
+    
+    // 유효한 위치만 필터링 (배열 범위를 벗어나는 위치 제거)
+    positions = positions.filter(pos => pos >= 0 && pos < controlChart.data.labels.length);
+    
+    // 강조할 위치 데이터 설정
+    positions.forEach(pos => {
+        highlightData[pos] = controlChart.data.datasets[0].data[pos];
+    });
+    
+    // 강조 데이터셋 추가
+    controlChart.data.datasets.push({
+        label: '강조된 패턴',
+        data: highlightData,
+        borderColor: '#dc3545',
+        backgroundColor: '#dc3545',
+        pointRadius: 8,
+        pointHoverRadius: 10,
+        pointStyle: 'circle',
+        borderWidth: 3,
+        fill: false,
+        showLine: false,
+        patternHighlight: true
+    });
+    
+    // 패턴 설명 영역 표시
+    showPatternExplanation(pattern, positions);
+    
+    // 차트 업데이트
+    controlChart.update();
+}
+
+// 패턴 설명 영역 표시 함수
+function showPatternExplanation(pattern, positions) {
+    // 패턴 설명 컨테이너 찾기 (없으면 생성)
+    let patternExplanationEl = document.querySelector('#pattern-explanation');
+    
+    if (!patternExplanationEl) {
+        patternExplanationEl = document.createElement('div');
+        patternExplanationEl.id = 'pattern-explanation';
+        patternExplanationEl.className = 'alert alert-info mt-3';
+        document.querySelector('#control-chart-container').after(patternExplanationEl);
+    }
+    
+    // 시그마 구간 설명 준비
+    let zoneExplanation = '';
+    switch (pattern.rule) {
+        case 5:
+            zoneExplanation = '<span class="badge sigma-zone-a">Zone A (2σ-3σ)</span> 구간은 중심선(CL)에서 2-시그마와 3-시그마 사이의 영역입니다.';
+            break;
+        case 6:
+            zoneExplanation = '<span class="badge sigma-zone-b">Zone B (1σ-2σ)</span> 구간은 중심선(CL)에서 1-시그마와 2-시그마 사이의 영역입니다.';
+            break;
+        case 7:
+            zoneExplanation = '<span class="badge sigma-zone-c">Zone C (0-1σ)</span> 구간은 중심선(CL)에서 0-시그마와 1-시그마 사이의 영역입니다.';
+            break;
+    }
+    
+    // 패턴 설명 내용 설정
+    patternExplanationEl.innerHTML = `
+        <h5 class="mb-2">Rule ${pattern.rule} 패턴 설명</h5>
+        <p class="mb-1"><strong>${pattern.description}</strong></p>
+        <p class="mb-2 small">위치: ${positions.map(p => `포인트 ${p+1}`).join(', ')}</p>
+        ${zoneExplanation ? `<p class="mb-0">${zoneExplanation}</p>` : ''}
+        <button type="button" class="btn btn-sm btn-outline-secondary mt-2" id="reset-highlight">강조 표시 지우기</button>
+    `;
+    
+    // 강조 표시 지우기 버튼 이벤트
+    document.querySelector('#reset-highlight').addEventListener('click', resetPatternHighlight);
+}
+
+// 패턴 강조 표시 초기화 함수
+function resetPatternHighlight() {
+    if (!controlChart) return;
+    
+    // 강조 데이터셋 제거
+    controlChart.data.datasets = controlChart.data.datasets.filter(ds => !ds.patternHighlight);
+    
+    // 차트 업데이트
+    controlChart.update();
+    
+    // 패턴 설명 영역 제거
+    const patternExplanationEl = document.querySelector('#pattern-explanation');
+    if (patternExplanationEl) {
+        patternExplanationEl.remove();
+    }
+    
+    // 테이블에서 선택된 행 강조 제거
+    document.querySelectorAll('.pattern-row').forEach(r => r.classList.remove('table-primary'));
+}
     
     // 이벤트 리스너 설정
     function setupEventListeners() {
