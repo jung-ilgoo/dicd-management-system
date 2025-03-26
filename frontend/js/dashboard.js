@@ -851,47 +851,80 @@ async function loadSpcAlerts() {
         </div>
         `;
         
-        // 모든 제품군 가져오기
-        const productGroups = await api.getProductGroups();
-        
-        // SPC 알림 목록
+        // 모든 알림 목록
         let allAlerts = [];
         
-        // 각 제품군에 대해 공정, 타겟 정보 가져와서 SPC 분석
-        for (const productGroup of productGroups) {
-            const processes = await api.getProcesses(productGroup.id);
-            
-            for (const process of processes) {
-                const targets = await api.getTargets(process.id);
-                
-                for (const target of targets) {
-                    try {
-                        // SPC 분석 데이터 가져오기 (최근 7일)
-                        const spcResult = await api.analyzeSpc(target.id, 7);
-                        
-                        // 패턴이 감지된 경우
-                        if (spcResult.patterns && spcResult.patterns.length > 0) {
-                            // 패턴 정보와 타겟 정보 결합
-                            const alerts = spcResult.patterns.map(pattern => ({
+        // 제품군 목록 가져오기
+        const productGroups = await api.getProductGroups();
+        
+        // 모든 공정 정보 가져오기
+        const processPromises = productGroups.map(productGroup => 
+            api.getProcesses(productGroup.id).then(processes => 
+                processes.map(process => ({
+                    process,
+                    productGroup
+                }))
+            )
+        );
+        
+        const processResults = await Promise.all(processPromises);
+        const allProcesses = processResults.flat();
+        
+        // 모든 타겟 정보 가져오기
+        const targetPromises = allProcesses.map(({ process, productGroup }) => 
+            api.getTargets(process.id).then(targets => 
+                targets.map(target => ({
+                    target,
+                    process,
+                    productGroup
+                }))
+            )
+        );
+        
+        const targetResults = await Promise.all(targetPromises);
+        const allTargets = targetResults.flat();
+        
+        // 각 타겟에 대해 SPC 분석 실행 (병렬 처리)
+        const spcPromises = allTargets.map(({ target, process, productGroup }) => 
+            api.analyzeSpc(target.id, 7) // 최근 7일 데이터
+                .then(result => {
+                    // 패턴이 감지된 경우
+                    if (result.patterns && result.patterns.length > 0) {
+                        return result.patterns.map(pattern => {
+                            // 패턴 발생 위치에 해당하는 날짜와 값 가져오기
+                            const pos = pattern.position || 0;
+                            const date = result.data.dates && pos < result.data.dates.length ? 
+                                result.data.dates[pos] : null;
+                            const value = result.data.values && pos < result.data.values.length ? 
+                                result.data.values[pos] : null;
+                            const lotNo = result.data.lot_nos && pos < result.data.lot_nos.length ? 
+                                result.data.lot_nos[pos] : null;
+                            
+                            return {
                                 ...pattern,
                                 targetId: target.id,
                                 targetName: target.name,
                                 processName: process.name,
                                 productGroupName: productGroup.name,
-                                date: spcResult.data.dates[pattern.position]
-                            }));
-                            
-                            allAlerts = [...allAlerts, ...alerts];
-                        }
-                    } catch (error) {
-                        console.warn(`타겟 ${target.id}에 대한 SPC 분석을 가져올 수 없습니다.`, error);
+                                date: date,
+                                value: value || pattern.value,
+                                lotNo: lotNo || pattern.lot_no || `위치 ${pos+1}`
+                            };
+                        });
                     }
-                }
-            }
-        }
+                    return [];
+                })
+                .catch(error => {
+                    console.warn(`타겟 ${target.id}에 대한 SPC 분석 실패:`, error);
+                    return [];
+                })
+        );
+        
+        const spcResults = await Promise.all(spcPromises);
+        allAlerts = spcResults.flat();
         
         // 알림이 없는 경우
-        if (allAlerts.length === 0) {
+        if (!allAlerts || allAlerts.length === 0) {
             document.getElementById('spc-alerts-container').innerHTML = `
             <div class="alert alert-success m-3">
                 <i class="fas fa-check-circle mr-1"></i> 현재 감지된 SPC 규칙 위반이 없습니다.
@@ -900,8 +933,14 @@ async function loadSpcAlerts() {
             return;
         }
         
+        console.log("감지된 SPC 알림:", allAlerts); // 디버깅용 로그
+        
         // 날짜별로 정렬 (최신순)
-        allAlerts.sort((a, b) => new Date(b.date) - new Date(a.date));
+        allAlerts.sort((a, b) => {
+            if (!a.date) return 1;
+            if (!b.date) return -1;
+            return new Date(b.date) - new Date(a.date);
+        });
         
         // 최대 10개만 표시
         const topAlerts = allAlerts.slice(0, 10);
@@ -914,9 +953,10 @@ async function loadSpcAlerts() {
                     <tr>
                         <th>날짜</th>
                         <th>타겟</th>
+                        <th>LOT NO</th>
                         <th>규칙</th>
                         <th>설명</th>
-                        <th>위치</th>
+                        <th>값</th>
                         <th>심각도</th>
                     </tr>
                 </thead>
@@ -952,9 +992,10 @@ async function loadSpcAlerts() {
             <tr>
                 <td>${alertDate}</td>
                 <td>${alert.productGroupName} - ${alert.processName} - ${alert.targetName}</td>
+                <td>${alert.lotNo || '-'}</td>
                 <td>Rule ${alert.rule}</td>
                 <td>${alert.description}</td>
-                <td>${alert.position}</td>
+                <td>${alert.value !== undefined ? alert.value.toFixed(3) : (alert.length ? `길이: ${alert.length}` : '-')}</td>
                 <td><span class="badge badge-${severityClass}">${severityText}</span></td>
             </tr>
             `;
@@ -973,7 +1014,7 @@ async function loadSpcAlerts() {
         console.error('SPC 알림 로드 실패:', error);
         document.getElementById('spc-alerts-container').innerHTML = `
         <div class="alert alert-danger m-3">
-            <i class="fas fa-exclamation-circle mr-1"></i> SPC 알림을 불러오는 중 오류가 발생했습니다.
+            <i class="fas fa-exclamation-circle mr-1"></i> SPC 알림을 불러오는 중 오류가 발생했습니다: ${error.message}
         </div>
         `;
     }
