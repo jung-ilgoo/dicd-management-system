@@ -115,7 +115,12 @@
 /* 차트 스타일 */
 .chart-container {
     position: relative;
-    height: 300px;
+    height: 400px;
+}
+
+/* R 차트 컨테이너의 높이를 200px로 지정 */
+#r-chart-container {
+    height: 200px !important; /* !important로 기존 .chart-container의 높이 설정보다 우선 적용 */
 }
 
 /* 상태 아이콘 */

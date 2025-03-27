@@ -136,6 +136,22 @@
         }
     }
     
+    // 장비 정보를 로드하는 함수 (새로 추가)
+    async function loadEquipments() {
+        try {
+            const equipments = await api.getEquipments();
+            // 장비 ID를 키로, 장비 이름을 값으로 하는 객체 생성
+            const equipmentMap = {};
+            equipments.forEach(equipment => {
+                equipmentMap[equipment.id] = equipment.name;
+            });
+            return equipmentMap;
+        } catch (error) {
+            console.error('장비 정보 로드 실패:', error);
+            return {};
+        }
+    }
+
     // 추이 분석 실행
     async function analyzeTrend() {
         // 타겟 선택 확인
@@ -145,55 +161,37 @@
         }
         
         try {
-            // 로딩 표시
-            document.getElementById('trend-chart-container').innerHTML = `
-            <div class="text-center py-5">
-                <div class="spinner-border text-primary" role="status">
-                    <span class="sr-only">로딩 중...</span>
-                </div>
-                <p class="mt-2">데이터 분석 중...</p>
-            </div>
-            `;
+            // 로딩 표시 (기존 코드)
+            document.getElementById('trend-chart-container').innerHTML = `...`;
+            document.getElementById('stats-container').innerHTML = `...`;
             
-            document.getElementById('stats-container').innerHTML = `
-            <div class="text-center py-5">
-                <div class="spinner-border text-primary" role="status">
-                    <span class="sr-only">로딩 중...</span>
-                </div>
-            </div>
-            `;
+            // 장비 정보 로드 (새로 추가)
+            const equipmentMap = await loadEquipments();
             
-            // 일수 계산
-            let days = 30; // 기본값
+            // 일수 계산 (기존 코드)
+            let days = 30;
             if (dateRangeType === 'last7') days = 7;
             else if (dateRangeType === 'last30') days = 30;
             else if (dateRangeType === 'last90') days = 90;
             
-            // API 요청 파라미터
+            // API 요청 파라미터 (기존 코드)
             const params = { days };
+            // ... 기존 코드 ...
             
-            // 사용자 지정 날짜 범위인 경우
-            if (dateRangeType === 'custom' && customStartDate && customEndDate) {
-                // API에 맞게 파라미터 조정 (일수 대신 시작일/종료일 사용)
-                delete params.days;
-                params.start_date = customStartDate;
-                params.end_date = customEndDate;
-            }
-            
-            // 통계 API 호출
+            // 통계 API 호출 (기존 코드)
             const statsResult = await api.getTargetStatistics(selectedTargetId, params.days);
             currentStats = statsResult;
             
-            // 측정 데이터 API 호출
+            // 측정 데이터 API 호출 (기존 코드)
             const measureParams = {
                 target_id: selectedTargetId,
-                limit: 1000, // 충분히 많은 데이터를 요청
-                ...params // 날짜 관련 파라미터 전달
+                limit: 1000,
+                ...params
             };
             const measurementsResult = await api.getMeasurements(measureParams);
             
-            // 결과 표시
-            updateTrendChart(measurementsResult, statsResult);
+            // 결과 표시 (equipmentMap 전달)
+            updateTrendChart(measurementsResult, statsResult, equipmentMap);
             updateStatsTable(statsResult);
             
         } catch (error) {
@@ -217,7 +215,7 @@
     }
     
     // 추이 차트 업데이트
-    function updateTrendChart(measurements, stats) {
+    function updateTrendChart(measurements, stats, equipmentMap = {}) {
         // 데이터 체크
         if (!measurements || measurements.length === 0) {
             document.getElementById('trend-chart-container').innerHTML = `
@@ -285,17 +283,7 @@
                     fill: false
                 }
             ];
-        } else if (chartType === 'scatter') {
-            // 산점도 차트 데이터셋
-            datasets = [
-                {
-                    label: '측정값',
-                    data: avgValues.map((value, index) => ({ x: index, y: value })),
-                    backgroundColor: '#3c8dbc',
-                    pointRadius: 5,
-                    pointHoverRadius: 7
-                }
-            ];
+        
         } else if (chartType === 'bar') {
             // 막대 차트 데이터셋
             datasets = [
@@ -386,17 +374,104 @@
                 }
             }
         };
-        
-        // 차트 생성
-        trendChart = new Chart(ctx, {
-            type: chartType === 'scatter' ? 'scatter' : (chartType === 'bar' ? 'bar' : 'line'),
-            data: {
-                labels: chartType === 'scatter' ? null : labels,
-                datasets: datasets
-            },
-            options: chartOptions
-        });
-    }
+        // 새 코드 (추가):
+        if (chartType === 'scatter') {
+            // 장비 정보 수집
+            const equipmentData = {};
+            
+            // 장비 ID가 있는 측정 데이터만 필터링
+            const measurementsWithEquipment = measurements.filter(m => 
+                m.coating_equipment_id || m.exposure_equipment_id || m.development_equipment_id);
+            
+            if (measurementsWithEquipment.length === 0) {
+                // 장비 정보가 없는 경우 안내 메시지 표시
+                document.getElementById('trend-chart-container').innerHTML = `
+                <div class="text-center py-5">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle mr-1"></i> 장비 정보가 있는 측정 데이터가 없습니다. 다른 차트 유형을 선택하세요.
+                    </div>
+                </div>
+                `;
+                return;
+            }
+            
+            // 장비 유형 선택 (coating, exposure, development)
+            const equipmentType = document.querySelector('input[name="equipment-type"]:checked')?.value || 'coating';
+            
+            // 장비 유형에 따른 필드 선택
+            const equipmentField = `${equipmentType}_equipment_id`;
+            
+            // 장비별로 데이터 그룹화할 때 장비 이름 사용
+            measurementsWithEquipment.forEach((m, index) => {
+                const equipmentId = m[equipmentField];
+                if (equipmentId) {
+                    // 장비 이름을 맵에서 가져오거나, 없으면 ID 사용
+                    const equipmentName = equipmentMap[equipmentId] || `장비 ID: ${equipmentId}`;
+                    
+                    if (!equipmentData[equipmentId]) {
+                        equipmentData[equipmentId] = {
+                            id: equipmentId,
+                            name: equipmentName,
+                            data: []
+                        };
+                    }
+                    // X 좌표는 장비 ID, Y 좌표는 측정값
+                    // 지터링을 위해 랜덤 오프셋 추가 (±0.2)
+                    const jitter = (Math.random() - 0.5) * 0.4;
+                    equipmentData[equipmentId].data.push({
+                        x: equipmentId + jitter,
+                        y: m.avg_value,
+                        date: new Date(m.created_at).toLocaleDateString(),
+                        lot: m.lot_no,
+                        wafer: m.wafer_no
+                    });
+                }
+            });
+            
+            // 장비별 데이터셋 생성
+            const colors = ['#3c8dbc', '#f39c12', '#00a65a', '#dd4b39', '#605ca8', '#00c0ef'];
+            datasets = Object.values(equipmentData).map((equipment, index) => ({
+                label: equipment.name,
+                data: equipment.data,
+                backgroundColor: colors[index % colors.length],
+                pointRadius: 6,
+                pointHoverRadius: 8
+            }));
+            
+            // X축 설정 수정
+            chartOptions.scales.x = {
+                type: 'linear',
+                title: {
+                    display: true,
+                    text: `${equipmentType.charAt(0).toUpperCase() + equipmentType.slice(1)} 장비`
+                },
+                // 여기에 ticks callback 추가
+                ticks: {
+                    callback: function(value) {
+                        // 가장 가까운 장비 ID 찾기
+                        const ids = Object.keys(equipmentData).map(Number);
+                        if (ids.length === 0) return value;
+                        
+                        const closestId = ids.reduce((prev, curr) => {
+                            return (Math.abs(curr - value) < Math.abs(prev - value)) ? curr : prev;
+                        });
+                        // 해당 ID의 장비 이름 반환
+                        return equipmentData[closestId]?.name || value;
+                    }
+                }
+            };
+        }
+            
+            // 차트 생성
+            trendChart = new Chart(ctx, {
+                type: chartType === 'scatter' ? 'scatter' : (chartType === 'bar' ? 'bar' : 'line'),
+                data: {
+                    labels: chartType === 'scatter' ? null : labels,
+                    datasets: datasets
+                },
+                options: chartOptions
+            });
+        }
     
     // 통계 테이블 업데이트
     function updateStatsTable(stats) {
@@ -624,13 +699,31 @@
             });
         });
         
-        // 차트 타입 라디오 버튼 변경 이벤트
+        // 차트 타입 라디오 버튼 변경 이벤트 (수정)
         document.querySelectorAll('input[name="chart-type"]').forEach(radio => {
             radio.addEventListener('change', function() {
                 chartType = this.value;
                 
+                // 산점도가 선택된 경우에만 장비 유형 선택 표시
+                const equipmentTypeContainer = document.getElementById('equipment-type-container');
+                if (chartType === 'scatter') {
+                    equipmentTypeContainer.style.display = 'block';
+                } else {
+                    equipmentTypeContainer.style.display = 'none';
+                }
+                
                 // 차트가 이미 그려져 있으면 업데이트
                 if (currentStats && selectedTargetId) {
+                    analyzeTrend();
+                }
+            });
+        });
+
+        // 장비 유형 라디오 버튼 변경 이벤트 (추가)
+        document.querySelectorAll('input[name="equipment-type"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                // 차트가 이미 그려져 있고 산점도 모드인 경우에만 업데이트
+                if (currentStats && selectedTargetId && chartType === 'scatter') {
                     analyzeTrend();
                 }
             });

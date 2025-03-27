@@ -259,6 +259,26 @@
                                         </div>
                                     </div>
                                 </div>
+                                <!-- 장비 유형 선택 (산점도 모드에서만 표시) -->
+                                <div class="col-md-4" id="equipment-type-container" style="display: none;">
+                                    <div class="form-group">
+                                        <label>장비 유형 (산점도)</label>
+                                        <div class="d-flex flex-wrap">
+                                            <div class="custom-control custom-radio mr-3">
+                                                <input class="custom-control-input" type="radio" id="equipment-type-coating" name="equipment-type" value="coating" checked>
+                                                <label for="equipment-type-coating" class="custom-control-label">코팅</label>
+                                            </div>
+                                            <div class="custom-control custom-radio mr-3">
+                                                <input class="custom-control-input" type="radio" id="equipment-type-exposure" name="equipment-type" value="exposure">
+                                                <label for="equipment-type-exposure" class="custom-control-label">노광</label>
+                                            </div>
+                                            <div class="custom-control custom-radio">
+                                                <input class="custom-control-input" type="radio" id="equipment-type-development" name="equipment-type" value="development">
+                                                <label for="equipment-type-development" class="custom-control-label">현상</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                                 
                                 <!-- 분석 버튼 -->
                                 <div class="col-md-2">
