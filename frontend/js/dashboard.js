@@ -298,6 +298,11 @@ function renderCpkHeatmap() {
                 const targetBlock = document.createElement('div');
                 targetBlock.className = 'target-block';
                 targetBlock.style.backgroundColor = bgColor;
+                targetBlock.style.cursor = 'pointer'; // 커서를 포인터로 변경
+                targetBlock.dataset.targetId = item.targetId; // 데이터 속성으로 타겟 ID 저장
+                targetBlock.addEventListener('click', function() {
+                    navigateToSpcPage(item.targetId, item.productGroup, item.process, item.target);
+                });
                 targetContainer.appendChild(targetBlock);
                 
                 const targetValue = document.createElement('div');
@@ -398,6 +403,11 @@ function renderCpkHeatmap() {
                 const targetBlock = document.createElement('div');
                 targetBlock.className = 'small-target-block';
                 targetBlock.style.backgroundColor = bgColor;
+                targetBlock.style.cursor = 'pointer'; // 커서를 포인터로 변경
+                targetBlock.dataset.targetId = item.targetId; // 데이터 속성으로 타겟 ID 저장
+                targetBlock.addEventListener('click', function() {
+                    navigateToSpcPage(item.targetId, item.productGroup, item.process, item.target);
+                });
                 targetContainer.appendChild(targetBlock);
                 
                 const targetValue = document.createElement('div');
@@ -834,6 +844,22 @@ const DASHBOARD_UTILS = {
         return `<div class="alert alert-danger"><i class="fas fa-exclamation-circle mr-1"></i> ${message}</div>`;
     }
 };
+
+// SPC 분석 페이지로 이동하는 함수
+function navigateToSpcPage(targetId, productGroup, process, targetName) {
+    // 로컬 스토리지에 선택한 타겟 정보 저장 (SPC 페이지에서 사용)
+    const targetInfo = {
+        targetId: targetId,
+        productGroup: productGroup,
+        process: process,
+        targetName: targetName
+    };
+    
+    localStorage.setItem('selected_target_for_spc', JSON.stringify(targetInfo));
+    
+    // SPC 분석 페이지로 이동
+    window.location.href = 'pages/analysis/spc.html';
+}
 
 // 페이지 로드 시 대시보드 초기화
 document.addEventListener('DOMContentLoaded', initDashboard);

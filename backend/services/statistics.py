@@ -139,3 +139,123 @@ def get_process_statistics(db: Session, target_id: int, start_date=None, end_dat
             result["position_capability"][position] = calculate_process_capability(values, lsl, usl)
     
     return result
+
+def get_boxplot_data(db: Session, target_id: int, group_by: str, start_date=None) -> Dict[str, Any]:
+    """
+    박스플롯 분석을 위한 데이터 계산
+    group_by: 'equipment' 또는 'device'
+    """
+    # 쿼리 설정
+    query = db.query(models.Measurement).filter(models.Measurement.target_id == target_id)
+    
+    if start_date:
+        query = query.filter(models.Measurement.created_at >= start_date)
+    
+    measurements = query.all()
+    
+    if not measurements:
+        return {"target_id": target_id, "groups": []}
+    
+    # 그룹화 기준에 따라 데이터 정리
+    groups = {}
+    
+    if group_by == 'equipment':
+        # 장비 ID별로 그룹화
+        for m in measurements:
+            # 각 장비 유형별로 처리
+            if m.coating_equipment_id:
+                equipment = db.query(models.Equipment).filter(models.Equipment.id == m.coating_equipment_id).first()
+                if equipment:
+                    key = f"코팅: {equipment.name}"
+                    if key not in groups:
+                        groups[key] = []
+                    groups[key].append(m.avg_value)
+            
+            if m.exposure_equipment_id:
+                equipment = db.query(models.Equipment).filter(models.Equipment.id == m.exposure_equipment_id).first()
+                if equipment:
+                    key = f"노광: {equipment.name}"
+                    if key not in groups:
+                        groups[key] = []
+                    groups[key].append(m.avg_value)
+            
+            if m.development_equipment_id:
+                equipment = db.query(models.Equipment).filter(models.Equipment.id == m.development_equipment_id).first()
+                if equipment:
+                    key = f"현상: {equipment.name}"
+                    if key not in groups:
+                        groups[key] = []
+                    groups[key].append(m.avg_value)
+    
+    elif group_by == 'device':
+        # 디바이스별로 그룹화
+        for m in measurements:
+            if m.device not in groups:
+                groups[m.device] = []
+            groups[m.device].append(m.avg_value)
+    
+    # 결과 데이터 구성
+    result_groups = []
+    
+    for name, values in groups.items():
+        if len(values) < 5:  # 데이터가 너무 적으면 통계적으로 의미가 없음
+            continue
+            
+        # 통계값 계산
+        sorted_values = sorted(values)
+        q1_idx = int(len(sorted_values) * 0.25)
+        q3_idx = int(len(sorted_values) * 0.75)
+        
+        min_val = min(sorted_values)
+        max_val = max(sorted_values)
+        q1 = sorted_values[q1_idx]
+        q3 = sorted_values[q3_idx]
+        median = statistics.median(sorted_values)
+        
+        # 이상치 계산 (IQR 방식)
+        iqr = q3 - q1
+        lower_bound = q1 - (1.5 * iqr)
+        upper_bound = q3 + (1.5 * iqr)
+        
+        outliers = [v for v in values if v < lower_bound or v > upper_bound]
+        
+        # 위스커 계산 (이상치를 제외한 최소/최대값)
+        whisker_min = min([v for v in sorted_values if v >= lower_bound])
+        whisker_max = max([v for v in sorted_values if v <= upper_bound])
+        
+        result_groups.append({
+            "name": name,
+            "count": len(values),
+            "min": round(min_val, 3),
+            "max": round(max_val, 3),
+            "median": round(median, 3),
+            "q1": round(q1, 3),
+            "q3": round(q3, 3),
+            "whisker_min": round(whisker_min, 3),
+            "whisker_max": round(whisker_max, 3),
+            "outliers": [round(o, 3) for o in outliers]
+        })
+    
+    # 타겟 정보 조회
+    target = db.query(models.Target).filter(models.Target.id == target_id).first()
+    
+    # 활성 SPEC 가져오기
+    spec = db.query(models.Spec).filter(
+        models.Spec.target_id == target_id,
+        models.Spec.is_active == True
+    ).first()
+    
+    result = {
+        "target_id": target_id,
+        "target_name": target.name if target else None,
+        "groups": sorted(result_groups, key=lambda x: x["name"])
+    }
+    
+    # SPEC 정보 추가
+    if spec:
+        result["spec"] = {
+            "lsl": spec.lsl,
+            "usl": spec.usl
+        }
+    
+    return result

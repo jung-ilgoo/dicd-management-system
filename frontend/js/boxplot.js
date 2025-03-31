@@ -1,0 +1,673 @@
+// 전역 변수
+let boxplotChart = null;
+
+// 페이지 로드 시 초기화
+$(document).ready(function() {
+    // 제품군 목록 로드
+    loadProductGroups();
+    
+    // 이벤트 리스너 등록
+    $('#product-group-select').on('change', handleProductGroupChange);
+    $('#process-select').on('change', handleProcessChange);
+    $('#target-select').on('change', handleTargetChange);
+    $('#analyze-btn').on('click', performAnalysis);
+    $('#reset-btn').on('click', resetFilters);
+    
+    // 폼 요소 변경 감지
+    $('input[name="group-by"]').on('change', function() {
+        if ($('#target-select').val()) {
+            $('#analyze-btn').prop('disabled', false);
+        }
+    });
+    
+    // 페이지 초기화
+    initPage();
+});
+
+// 페이지 초기화
+function initPage() {
+    // URL에서 파라미터 가져오기
+    const urlParams = new URLSearchParams(window.location.search);
+    const targetId = urlParams.get('target_id');
+    
+    if (targetId) {
+        // 타겟 ID가 URL에 있으면 해당 타겟 정보 가져오기
+        loadTargetInfo(targetId);
+    }
+}
+
+// 타겟 정보 가져오기
+async function loadTargetInfo(targetId) {
+    try {
+        // 타겟 정보 가져오기
+        const target = await api.get(`${api.endpoints.TARGETS}/${targetId}`);
+        if (!target) return;
+        
+        // 해당 공정 가져오기
+        const process = await api.get(`${api.endpoints.PROCESSES}/${target.process_id}`);
+        if (!process) return;
+        
+        // 제품군 목록이 로드될 때까지 기다리기
+        await waitForElement('#product-group-select option');
+        
+        // 제품군 선택
+        $('#product-group-select').val(process.product_group_id).trigger('change');
+        
+        // 공정 목록이 로드될 때까지 기다리기
+        await waitForElement('#process-select option[value="' + process.id + '"]');
+        
+        // 공정 선택
+        $('#process-select').val(process.id).trigger('change');
+        
+        // 타겟 목록이 로드될 때까지 기다리기
+        await waitForElement('#target-select option[value="' + target.id + '"]');
+        
+        // 타겟 선택
+        $('#target-select').val(target.id).trigger('change');
+        
+        // 자동으로 분석 수행
+        performAnalysis();
+    } catch (error) {
+        console.error('타겟 정보 로딩 오류:', error);
+        showAlert('타겟 정보를 가져오는데 실패했습니다.', 'danger');
+    }
+}
+
+// 요소가 로드될 때까지 기다리는 함수
+function waitForElement(selector) {
+    return new Promise(resolve => {
+        if ($(selector).length) {
+            return resolve();
+        }
+        
+        const observer = new MutationObserver(() => {
+            if ($(selector).length) {
+                observer.disconnect();
+                resolve();
+            }
+        });
+        
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+    });
+}
+
+// 제품군 목록 로드
+async function loadProductGroups() {
+    try {
+        const productGroups = await api.getProductGroups();
+        
+        // 제품군 옵션 생성
+        const $select = $('#product-group-select');
+        $select.find('option:not(:first)').remove();
+        
+        productGroups.forEach(group => {
+            $select.append(`<option value="${group.id}">${group.name}</option>`);
+        });
+    } catch (error) {
+        console.error('제품군 로딩 오류:', error);
+        showAlert('제품군 목록을 가져오는데 실패했습니다.', 'danger');
+    }
+}
+
+// 제품군 변경 핸들러
+async function handleProductGroupChange() {
+    const productGroupId = $('#product-group-select').val();
+    const $processSelect = $('#process-select');
+    const $targetSelect = $('#target-select');
+    
+    // 공정과 타겟 선택 초기화
+    $processSelect.find('option:not(:first)').remove();
+    $targetSelect.find('option:not(:first)').remove();
+    $processSelect.prop('disabled', !productGroupId);
+    $targetSelect.prop('disabled', true);
+    $('#analyze-btn').prop('disabled', true);
+    
+    if (!productGroupId) return;
+    
+    try {
+        const processes = await api.getProcesses(productGroupId);
+        
+        // 공정 옵션 생성
+        processes.forEach(process => {
+            $processSelect.append(`<option value="${process.id}">${process.name}</option>`);
+        });
+        
+        if (processes.length === 0) {
+            showAlert('선택한 제품군에 공정이 없습니다.', 'warning');
+        }
+    } catch (error) {
+        console.error('공정 로딩 오류:', error);
+        showAlert('공정 목록을 가져오는데 실패했습니다.', 'danger');
+    }
+}
+
+// 공정 변경 핸들러
+async function handleProcessChange() {
+    const processId = $('#process-select').val();
+    const $targetSelect = $('#target-select');
+    
+    // 타겟 선택 초기화
+    $targetSelect.find('option:not(:first)').remove();
+    $targetSelect.prop('disabled', !processId);
+    $('#analyze-btn').prop('disabled', true);
+    
+    if (!processId) return;
+    
+    try {
+        const targets = await api.getTargets(processId);
+        
+        // 타겟 옵션 생성
+        targets.forEach(target => {
+            $targetSelect.append(`<option value="${target.id}">${target.name}</option>`);
+        });
+        
+        if (targets.length === 0) {
+            showAlert('선택한 공정에 타겟이 없습니다.', 'warning');
+        }
+    } catch (error) {
+        console.error('타겟 로딩 오류:', error);
+        showAlert('타겟 목록을 가져오는데 실패했습니다.', 'danger');
+    }
+}
+
+// 타겟 변경 핸들러
+function handleTargetChange() {
+    const targetId = $('#target-select').val();
+    $('#analyze-btn').prop('disabled', !targetId);
+}
+
+// 분석 실행
+async function performAnalysis() {
+    const targetId = $('#target-select').val();
+    if (!targetId) return;
+    
+    const days = $('#days-select').val();
+    const groupBy = $('input[name="group-by"]:checked').val();
+    
+    try {
+        // 로딩 표시
+        showLoading();
+        
+        // 임시 테스트 데이터 (실제로는 API 호출 결과를 사용)
+        const testData = {
+            target_id: targetId,
+            target_name: "테스트 타겟",
+            groups: [
+                {
+                    name: "노광: 노광 1호기",
+                    count: 25,
+                    min: 7.25,
+                    max: 7.74,
+                    median: 7.52,
+                    q1: 7.43,
+                    q3: 7.61,
+                    whisker_min: 7.30,
+                    whisker_max: 7.70,
+                    outliers: [7.25, 7.74]
+                },
+                {
+                    name: "노광: 노광 2호기",
+                    count: 18,
+                    min: 7.28,
+                    max: 7.69,
+                    median: 7.49,
+                    q1: 7.40,
+                    q3: 7.59,
+                    whisker_min: 7.30,
+                    whisker_max: 7.70,
+                    outliers: [7.28]
+                },
+                {
+                    name: "코팅: 코팅 Coater 3C",
+                    count: 30,
+                    min: 7.31,
+                    max: 7.68,
+                    median: 7.51,
+                    q1: 7.44,
+                    q3: 7.58,
+                    whisker_min: 7.30,
+                    whisker_max: 7.70,
+                    outliers: []
+                },
+                {
+                    name: "현상: 현상 1호기",
+                    count: 22,
+                    min: 7.29,
+                    max: 7.71,
+                    median: 7.55,
+                    q1: 7.46,
+                    q3: 7.62,
+                    whisker_min: 7.30,
+                    whisker_max: 7.70,
+                    outliers: [7.71]
+                },
+                {
+                    name: "현상: 현상 2호기",
+                    count: 15,
+                    min: 7.33,
+                    max: 7.67,
+                    median: 7.53,
+                    q1: 7.45,
+                    q3: 7.60,
+                    whisker_min: 7.30,
+                    whisker_max: 7.67,
+                    outliers: []
+                }
+            ],
+            spec: {
+                lsl: 7.3,
+                usl: 7.7
+            }
+        };
+        
+        // 백엔드 API 호출 (실제 구현시 주석 해제)
+        // const boxplotData = await api.getBoxplotData(targetId, groupBy, days);
+        
+        // 테스트용 임시 데이터 사용
+        const boxplotData = testData;
+        
+        // 차트 렌더링
+        renderSimpleBoxPlot(boxplotData);
+        
+        // 통계 테이블 렌더링
+        renderStatsTable(boxplotData);
+        
+        // 로딩 숨기기
+        hideLoading();
+    } catch (error) {
+        hideLoading();
+        console.error('박스플롯 분석 오류:', error);
+        
+        let errorMessage = '박스플롯 분석 중 오류가 발생했습니다.';
+        if (error.message && error.message.includes('404')) {
+            errorMessage = '분석할 충분한 데이터가 없습니다. 필터 조건을 변경해 보세요.';
+        }
+        
+        showAlert(errorMessage, 'danger');
+        
+        // 차트 컨테이너 비우기
+        $('#boxplot-container').html(`
+            <p class="text-muted text-center py-5">
+                ${errorMessage}
+            </p>
+        `);
+        
+        // 통계 테이블 비우기
+        $('#stats-table tbody').html(`
+            <tr>
+                <td colspan="8" class="text-center text-muted">데이터가 없습니다.</td>
+            </tr>
+        `);
+    }
+}
+
+// 로딩 표시
+function showLoading() {
+    $('#boxplot-container').html(`
+        <div class="d-flex justify-content-center align-items-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="sr-only">로딩 중...</span>
+            </div>
+        </div>
+    `);
+}
+
+// 로딩 숨기기
+function hideLoading() {
+    // 아무 작업 안함 - 차트 렌더링 시 덮어씌워짐
+}
+
+// 필터 초기화
+function resetFilters() {
+    $('#product-group-select').val('').trigger('change');
+    $('#process-select').val('').prop('disabled', true);
+    $('#target-select').val('').prop('disabled', true);
+    $('#days-select').val('30');
+    $('#group-by-equipment').prop('checked', true).parent().addClass('active');
+    $('#group-by-device').prop('checked', false).parent().removeClass('active');
+    $('#analyze-btn').prop('disabled', true);
+    
+    // 차트 컨테이너 초기화
+    $('#boxplot-container').html(`
+        <p class="text-muted text-center py-5">
+            상단의 필터 조건을 설정하고 분석 수행 버튼을 클릭하세요.
+        </p>
+    `);
+    
+    // 통계 테이블 초기화
+    $('#stats-table tbody').html(`
+        <tr>
+            <td colspan="8" class="text-center text-muted">데이터가 없습니다.</td>
+        </tr>
+    `);
+    
+    // 기존 차트 제거
+    if (boxplotChart) {
+        boxplotChart.destroy();
+        boxplotChart = null;
+    }
+}
+
+function renderSimpleBoxPlot(data) {
+    // 기존 차트 제거
+    if (boxplotChart) {
+        boxplotChart.destroy();
+    }
+    
+    const $container = $('#boxplot-container');
+    $container.empty();
+    
+    // 데이터가 없는 경우
+    if (!data.groups || data.groups.length === 0) {
+        $container.html(`
+            <p class="text-muted text-center py-5">
+                분석할 충분한 데이터가 없습니다. 필터 조건을 변경해 보세요.
+            </p>
+        `);
+        return;
+    }
+    
+    // SVG 기반 박스플롯 직접 그리기
+    const svgWidth = $container.width();
+    const svgHeight = 400;
+    const margin = {top: 50, right: 50, bottom: 50, left: 60};
+    const width = svgWidth - margin.left - margin.right;
+    const height = svgHeight - margin.top - margin.bottom;
+    
+    // 데이터 준비
+    const groups = data.groups;
+    const groupNames = groups.map(g => g.name);
+    
+    // 최소, 최대값 찾기
+    let minY = Math.min(...groups.map(g => g.whisker_min));
+    let maxY = Math.max(...groups.map(g => g.whisker_max));
+    
+    // SPEC 값을 고려하여 Y축 범위 조정
+    if (data.spec) {
+        if (data.spec.lsl !== undefined) minY = Math.min(minY, data.spec.lsl);
+        if (data.spec.usl !== undefined) maxY = Math.max(maxY, data.spec.usl);
+    }
+    
+    // 여백 추가 (10%)
+    const padding = (maxY - minY) * 0.1;
+    minY -= padding;
+    maxY += padding;
+    
+    // SVG 생성
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("width", svgWidth);
+    svg.setAttribute("height", svgHeight);
+    
+    // 그룹별 X 위치 계산
+    const xScale = width / groups.length;
+    const boxWidth = xScale * 0.6;
+    
+    // Y 축 스케일 계산
+    const yScale = height / (maxY - minY);
+    
+    // 각 그룹별로 박스플롯 그리기
+    groups.forEach((group, i) => {
+        const x = margin.left + (i + 0.5) * xScale;
+        
+        // 박스 및 위스커 Y 좌표 계산
+        const yMin = margin.top + height - (group.whisker_min - minY) * yScale;
+        const yQ1 = margin.top + height - (group.q1 - minY) * yScale;
+        const yMedian = margin.top + height - (group.median - minY) * yScale;
+        const yQ3 = margin.top + height - (group.q3 - minY) * yScale;
+        const yMax = margin.top + height - (group.whisker_max - minY) * yScale;
+        
+        // 색상 인덱스 (순환)
+        const colorIndex = i % 5;
+        const colors = [
+            {fill: 'rgba(54, 162, 235, 0.5)', stroke: 'rgba(54, 162, 235, 1)'},
+            {fill: 'rgba(255, 99, 132, 0.5)', stroke: 'rgba(255, 99, 132, 1)'},
+            {fill: 'rgba(75, 192, 192, 0.5)', stroke: 'rgba(75, 192, 192, 1)'},
+            {fill: 'rgba(255, 206, 86, 0.5)', stroke: 'rgba(255, 206, 86, 1)'},
+            {fill: 'rgba(153, 102, 255, 0.5)', stroke: 'rgba(153, 102, 255, 1)'}
+        ];
+        
+        // Q1-Q3 박스 그리기
+        const box = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        box.setAttribute("x", x - boxWidth/2);
+        box.setAttribute("y", yQ3);
+        box.setAttribute("width", boxWidth);
+        box.setAttribute("height", yQ1 - yQ3);
+        box.setAttribute("fill", colors[colorIndex].fill);
+        box.setAttribute("stroke", colors[colorIndex].stroke);
+        box.setAttribute("stroke-width", "2");
+        svg.appendChild(box);
+        
+        // 중앙값 선 그리기
+        const medianLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        medianLine.setAttribute("x1", x - boxWidth/2);
+        medianLine.setAttribute("y1", yMedian);
+        medianLine.setAttribute("x2", x + boxWidth/2);
+        medianLine.setAttribute("y2", yMedian);
+        medianLine.setAttribute("stroke", colors[colorIndex].stroke);
+        medianLine.setAttribute("stroke-width", "2");
+        svg.appendChild(medianLine);
+        
+        // 위스커 상단 선 (Q3 -> 최대값)
+        const whiskerTop = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        whiskerTop.setAttribute("x1", x);
+        whiskerTop.setAttribute("y1", yQ3);
+        whiskerTop.setAttribute("x2", x);
+        whiskerTop.setAttribute("y2", yMax);
+        whiskerTop.setAttribute("stroke", colors[colorIndex].stroke);
+        whiskerTop.setAttribute("stroke-width", "1");
+        svg.appendChild(whiskerTop);
+        
+        // 위스커 하단 선 (Q1 -> 최소값)
+        const whiskerBottom = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        whiskerBottom.setAttribute("x1", x);
+        whiskerBottom.setAttribute("y1", yQ1);
+        whiskerBottom.setAttribute("x2", x);
+        whiskerBottom.setAttribute("y2", yMin);
+        whiskerBottom.setAttribute("stroke", colors[colorIndex].stroke);
+        whiskerBottom.setAttribute("stroke-width", "1");
+        svg.appendChild(whiskerBottom);
+        
+        // 위스커 상단 가로선
+        const whiskerTopCap = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        whiskerTopCap.setAttribute("x1", x - boxWidth/4);
+        whiskerTopCap.setAttribute("y1", yMax);
+        whiskerTopCap.setAttribute("x2", x + boxWidth/4);
+        whiskerTopCap.setAttribute("y2", yMax);
+        whiskerTopCap.setAttribute("stroke", colors[colorIndex].stroke);
+        whiskerTopCap.setAttribute("stroke-width", "1");
+        svg.appendChild(whiskerTopCap);
+        
+        // 위스커 하단 가로선
+        const whiskerBottomCap = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        whiskerBottomCap.setAttribute("x1", x - boxWidth/4);
+        whiskerBottomCap.setAttribute("y1", yMin);
+        whiskerBottomCap.setAttribute("x2", x + boxWidth/4);
+        whiskerBottomCap.setAttribute("y2", yMin);
+        whiskerBottomCap.setAttribute("stroke", colors[colorIndex].stroke);
+        whiskerBottomCap.setAttribute("stroke-width", "1");
+        svg.appendChild(whiskerBottomCap);
+        
+        // 이상치 그리기
+        if (group.outliers && group.outliers.length > 0) {
+            group.outliers.forEach(outlier => {
+                const yOutlier = margin.top + height - (outlier - minY) * yScale;
+                
+                const outlierDot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                outlierDot.setAttribute("cx", x);
+                outlierDot.setAttribute("cy", yOutlier);
+                outlierDot.setAttribute("r", "3");
+                outlierDot.setAttribute("fill", "rgba(255, 99, 132, 1)");
+                outlierDot.setAttribute("stroke", "rgba(255, 99, 132, 1)");
+                outlierDot.setAttribute("stroke-width", "1");
+                svg.appendChild(outlierDot);
+            });
+        }
+        
+        // X축 레이블
+        const labelY = margin.top + height + 20;
+        const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        label.setAttribute("x", x);
+        label.setAttribute("y", labelY);
+        label.setAttribute("text-anchor", "middle");
+        label.setAttribute("font-size", "12");
+        label.textContent = group.name;
+        svg.appendChild(label);
+    });
+    
+    // Y축 그리기
+    const yAxis = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    yAxis.setAttribute("x1", margin.left);
+    yAxis.setAttribute("y1", margin.top);
+    yAxis.setAttribute("x2", margin.left);
+    yAxis.setAttribute("y2", margin.top + height);
+    yAxis.setAttribute("stroke", "#000");
+    yAxis.setAttribute("stroke-width", "1");
+    svg.appendChild(yAxis);
+    
+    // Y축 눈금 및 레이블
+    const yTicks = 5;
+    for (let i = 0; i <= yTicks; i++) {
+        const value = minY + (maxY - minY) * (i / yTicks);
+        const y = margin.top + height - (value - minY) * yScale;
+        
+        const tick = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        tick.setAttribute("x1", margin.left - 5);
+        tick.setAttribute("y1", y);
+        tick.setAttribute("x2", margin.left);
+        tick.setAttribute("y2", y);
+        tick.setAttribute("stroke", "#000");
+        tick.setAttribute("stroke-width", "1");
+        svg.appendChild(tick);
+        
+        const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        label.setAttribute("x", margin.left - 10);
+        label.setAttribute("y", y + 4);
+        label.setAttribute("text-anchor", "end");
+        label.setAttribute("font-size", "12");
+        label.textContent = value.toFixed(2);
+        svg.appendChild(label);
+    }
+    
+    // LSL, USL 라인 추가
+    if (data.spec) {
+        // USL 라인
+        if (data.spec.usl !== undefined) {
+            const yUSL = margin.top + height - (data.spec.usl - minY) * yScale;
+            
+            const uslLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            uslLine.setAttribute("x1", margin.left);
+            uslLine.setAttribute("y1", yUSL);
+            uslLine.setAttribute("x2", margin.left + width);
+            uslLine.setAttribute("y2", yUSL);
+            uslLine.setAttribute("stroke", "rgba(0, 123, 255, 0.8)");
+            uslLine.setAttribute("stroke-width", "2");
+            uslLine.setAttribute("stroke-dasharray", "5,5");
+            svg.appendChild(uslLine);
+            
+            const uslLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            uslLabel.setAttribute("x", margin.left + width + 5);
+            uslLabel.setAttribute("y", yUSL + 4);
+            uslLabel.setAttribute("text-anchor", "start");
+            uslLabel.setAttribute("font-size", "12");
+            uslLabel.setAttribute("fill", "rgba(0, 123, 255, 0.8)");
+            uslLabel.textContent = `USL (${data.spec.usl})`;
+            svg.appendChild(uslLabel);
+        }
+        
+        // LSL 라인
+        if (data.spec.lsl !== undefined) {
+            const yLSL = margin.top + height - (data.spec.lsl - minY) * yScale;
+            
+            const lslLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            lslLine.setAttribute("x1", margin.left);
+            lslLine.setAttribute("y1", yLSL);
+            lslLine.setAttribute("x2", margin.left + width);
+            lslLine.setAttribute("y2", yLSL);
+            lslLine.setAttribute("stroke", "rgba(0, 123, 255, 0.8)");
+            lslLine.setAttribute("stroke-width", "2");
+            lslLine.setAttribute("stroke-dasharray", "5,5");
+            svg.appendChild(lslLine);
+            
+            const lslLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            lslLabel.setAttribute("x", margin.left + width + 5);
+            lslLabel.setAttribute("y", yLSL + 4);
+            lslLabel.setAttribute("text-anchor", "start");
+            lslLabel.setAttribute("font-size", "12");
+            lslLabel.setAttribute("fill", "rgba(0, 123, 255, 0.8)");
+            lslLabel.textContent = `LSL (${data.spec.lsl})`;
+            svg.appendChild(lslLabel);
+        }
+    }
+    
+    // 제목 추가
+    const title = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    title.setAttribute("x", svgWidth / 2);
+    title.setAttribute("y", margin.top / 2);
+    title.setAttribute("text-anchor", "middle");
+    title.setAttribute("font-size", "16");
+    title.setAttribute("font-weight", "bold");
+    title.textContent = `${data.target_name || '타겟'} 박스플롯 분석`;
+    svg.appendChild(title);
+    
+    // SVG를 컨테이너에 추가
+    $container.append(svg);
+}
+
+// 통계 테이블 렌더링
+function renderStatsTable(data) {
+    const $tbody = $('#stats-table tbody');
+    $tbody.empty();
+    
+    if (!data.groups || data.groups.length === 0) {
+        $tbody.html(`
+            <tr>
+                <td colspan="8" class="text-center text-muted">데이터가 없습니다.</td>
+            </tr>
+        `);
+        return;
+    }
+    
+    data.groups.forEach(group => {
+        $tbody.append(`
+            <tr>
+                <td>${group.name}</td>
+                <td>${group.count}</td>
+                <td>${group.min}</td>
+                <td>${group.q1}</td>
+                <td>${group.median}</td>
+                <td>${group.q3}</td>
+                <td>${group.max}</td>
+                <td>${group.outliers ? group.outliers.length : 0}</td>
+            </tr>
+        `);
+    });
+}
+
+// 경고 표시
+function showAlert(message, type = 'warning') {
+    // 경고 메시지 출력
+    console.log(`[${type}] ${message}`);
+    
+    // 실제 UI에 경고 메시지를 표시하려면 다음과 같은 코드를 추가할 수 있습니다
+    /*
+    const alertHtml = `
+        <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+            ${message}
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+    `;
+    
+    // 경고 메시지를 페이지에 추가
+    $('.content-header').after(alertHtml);
+    
+    // 3초 후 자동으로 경고 메시지 닫기
+    setTimeout(() => {
+        $('.alert').alert('close');
+    }, 3000);
+    */
+}

@@ -97,6 +97,12 @@
                                         <p>분포 분석</p>
                                     </a>
                                 </li>
+                                <li class="nav-item">
+                                    <a href="pages/analysis/boxplot.html" class="nav-link">
+                                        <i class="far fa-circle nav-icon"></i>
+                                        <p>박스플롯 분석</p>
+                                    </a>
+                                </li>
                             </ul>
                         </li>
                         <li class="nav-item">
@@ -239,47 +245,6 @@
                                     </div>
                                 </div>
                                 
-                                <!-- 차트 종류 선택 -->
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label>차트 종류</label>
-                                        <div class="d-flex flex-wrap">
-                                            <div class="custom-control custom-radio mr-3">
-                                                <input class="custom-control-input" type="radio" id="chart-type-line" name="chart-type" value="line" checked>
-                                                <label for="chart-type-line" class="custom-control-label">선 차트</label>
-                                            </div>
-                                            <div class="custom-control custom-radio mr-3">
-                                                <input class="custom-control-input" type="radio" id="chart-type-scatter" name="chart-type" value="scatter">
-                                                <label for="chart-type-scatter" class="custom-control-label">산점도</label>
-                                            </div>
-                                            <div class="custom-control custom-radio">
-                                                <input class="custom-control-input" type="radio" id="chart-type-bar" name="chart-type" value="bar">
-                                                <label for="chart-type-bar" class="custom-control-label">막대 차트</label>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <!-- 장비 유형 선택 (산점도 모드에서만 표시) -->
-                                <div class="col-md-4" id="equipment-type-container" style="display: none;">
-                                    <div class="form-group">
-                                        <label>장비 유형 (산점도)</label>
-                                        <div class="d-flex flex-wrap">
-                                            <div class="custom-control custom-radio mr-3">
-                                                <input class="custom-control-input" type="radio" id="equipment-type-coating" name="equipment-type" value="coating" checked>
-                                                <label for="equipment-type-coating" class="custom-control-label">코팅</label>
-                                            </div>
-                                            <div class="custom-control custom-radio mr-3">
-                                                <input class="custom-control-input" type="radio" id="equipment-type-exposure" name="equipment-type" value="exposure">
-                                                <label for="equipment-type-exposure" class="custom-control-label">노광</label>
-                                            </div>
-                                            <div class="custom-control custom-radio">
-                                                <input class="custom-control-input" type="radio" id="equipment-type-development" name="equipment-type" value="development">
-                                                <label for="equipment-type-development" class="custom-control-label">현상</label>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                
                                 <!-- 분석 버튼 -->
                                 <div class="col-md-2">
                                     <div class="form-group">
@@ -359,4 +324,4 @@
     <script src="../../js/api.js"></script>
     <script src="../../js/trend.js"></script>
 </body>
-</html> 
+</html>

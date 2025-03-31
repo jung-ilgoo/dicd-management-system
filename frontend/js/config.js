@@ -22,7 +22,11 @@ const API_CONFIG = {
         // 보고서 관련 엔드포인트
         REPORTS: '/reports',
         // 기존 엔드포인트들...
-        DUPLICATE_CHECK: '/duplicate-check'
+        DUPLICATE_CHECK: '/duplicate-check',
+        // 분포 분석 엔드포인트 추가
+        DISTRIBUTION: "/distribution",
+        // 박스플롯 분석 엔드포인트 추가
+        BOXPLOT: '/statistics/boxplot'
     }
 };
 
@@ -84,4 +88,22 @@ const UTILS = {
         </div>
         `;
     }
+};
+
+// 시각화 색상 설정
+const CHART_COLORS = {
+    PRIMARY: 'rgba(60, 141, 188, 1)',
+    SUCCESS: 'rgba(40, 167, 69, 1)',
+    INFO: 'rgba(23, 162, 184, 1)',
+    WARNING: 'rgba(255, 193, 7, 1)',
+    DANGER: 'rgba(220, 53, 69, 1)',
+    LIGHT: 'rgba(248, 249, 250, 1)',
+    DARK: 'rgba(52, 58, 64, 1)',
+    GRAY: 'rgba(108, 117, 125, 1)',
+    
+    TRANSPARENT_PRIMARY: 'rgba(60, 141, 188, 0.2)',
+    TRANSPARENT_SUCCESS: 'rgba(40, 167, 69, 0.2)',
+    TRANSPARENT_INFO: 'rgba(23, 162, 184, 0.2)',
+    TRANSPARENT_WARNING: 'rgba(255, 193, 7, 0.2)',
+    TRANSPARENT_DANGER: 'rgba(220, 53, 69, 0.2)'
 };

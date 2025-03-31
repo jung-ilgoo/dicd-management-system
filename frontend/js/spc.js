@@ -15,6 +15,63 @@
         
         // 이벤트 리스너 설정
         setupEventListeners();
+        
+        // 대시보드에서 전달된 타겟 정보가 있는지 확인
+        const targetInfoJson = localStorage.getItem('selected_target_for_spc');
+        if (targetInfoJson) {
+            try {
+                const targetInfo = JSON.parse(targetInfoJson);
+                
+                console.log('대시보드에서 전달된 타겟 정보:', targetInfo);
+                
+                // 제품군 선택
+                const productGroupSelect = document.getElementById('product-group');
+                for (let i = 0; i < productGroupSelect.options.length; i++) {
+                    if (productGroupSelect.options[i].text === targetInfo.productGroup) {
+                        productGroupSelect.selectedIndex = i;
+                        selectedProductGroupId = productGroupSelect.value;
+                        break;
+                    }
+                }
+                
+                // 공정 목록 로드 후 선택
+                if (selectedProductGroupId) {
+                    await loadProcesses(selectedProductGroupId);
+                    const processSelect = document.getElementById('process');
+                    for (let i = 0; i < processSelect.options.length; i++) {
+                        if (processSelect.options[i].text === targetInfo.process) {
+                            processSelect.selectedIndex = i;
+                            selectedProcessId = processSelect.value;
+                            break;
+                        }
+                    }
+                }
+                
+                // 타겟 목록 로드 후 선택
+                if (selectedProcessId) {
+                    await loadTargets(selectedProcessId);
+                    const targetSelect = document.getElementById('target');
+                    for (let i = 0; i < targetSelect.options.length; i++) {
+                        if (targetSelect.options[i].text === targetInfo.targetName) {
+                            targetSelect.selectedIndex = i;
+                            selectedTargetId = targetSelect.value;
+                            break;
+                        }
+                    }
+                }
+                
+                // 타겟이 선택되었으면 SPC 분석 실행
+                if (selectedTargetId) {
+                    analyzeSpc();
+                    
+                    // 사용 후 로컬 스토리지에서 제거
+                    localStorage.removeItem('selected_target_for_spc');
+                }
+            } catch (error) {
+                console.error('타겟 정보 파싱 오류:', error);
+                localStorage.removeItem('selected_target_for_spc');
+            }
+        }
     }
     
     // 제품군 목록 로드

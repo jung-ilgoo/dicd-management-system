@@ -285,6 +285,31 @@ class API {
         const url = `${this.baseUrl}${this.endpoints.REPORTS}/monthly/${targetId}${queryParams ? '?' + queryParams : ''}`;
         window.open(url, '_blank');
     }
+
+    // 분포 분석 관련 메서드 (특별 처리)
+    async analyzeDistribution(targetId, days = 30) {
+        // /api가 중복되므로 기본 URL에서 /api를 제거한 URL 사용
+        const baseUrl = this.baseUrl.replace('/api', '');
+        const url = `${baseUrl}/api${this.endpoints.DISTRIBUTION}/analyze/${targetId}`;
+        
+        try {
+            const response = await fetch(`${url}?days=${days}`);
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            return await response.json();
+        } catch (error) {
+            console.error('분포 분석 API 요청 오류:', error);
+            throw error;
+        }
+    }
+    // 박스플롯 분석용 메서드
+    async getBoxplotData(targetId, groupBy, days = 30) {
+        return this.get(`${this.endpoints.BOXPLOT}/${targetId}`, { 
+            group_by: groupBy,
+            days: days 
+        });
+    }
 }
 // API 인스턴스 생성
 const api = new API(API_CONFIG);
