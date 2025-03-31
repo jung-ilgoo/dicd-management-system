@@ -1012,15 +1012,51 @@ function initializeDateRangePicker() {
  
  // 모달이 열릴 때 모든 타겟 목록 로드
  $('#add-targets-modal').on('show.bs.modal', async function() {
+    // 모달 다이얼로그 높이 최적화
+    const modalDialog = this.querySelector('.modal-dialog');
+    modalDialog.style.maxHeight = '90vh'; // viewport 높이의 90%
+    
+    const modalBody = this.querySelector('.modal-body');
+    modalBody.style.maxHeight = 'calc(90vh - 130px)'; // 헤더와 푸터 공간 고려하여 조정
+    modalBody.style.overflowY = 'auto'; // 수직 스크롤 활성화
+    
+    // 전체 선택 체크박스 초기화
+    $('#check-all').prop('checked', false);
+
     const targetChecklistBody = document.getElementById('targets-checklist-body');
     targetChecklistBody.innerHTML = '<tr><td colspan="4" class="text-center"><i class="fas fa-spinner fa-spin mr-2"></i>데이터를 불러오는 중...</td></tr>';
     
+    // 테이블 컨테이너의 최대 높이를 늘리고 행 간격 축소
+    document.querySelector('.table-responsive').style.maxHeight = '500px';
+    
+ // 모달이 닫힐 때 이벤트 처리 추가
+$('#add-targets-modal').on('hidden.bs.modal', function() {
+    // 모달이 닫힐 때 체크박스 상태를 현재 선택된 타겟과 동기화
+    const selectedTargetIds = targetManager.getAllTargets().map(t => t.targetId);
+    
+    $('#targets-checklist-body input[type="checkbox"]').each(function() {
+        const targetId = parseInt($(this).attr('data-target-id'));
+        $(this).prop('checked', selectedTargetIds.includes(targetId));
+    });
+    
+    // 전체 선택 상태 업데이트
+    const allCheckboxes = $('#targets-checklist-body input[type="checkbox"]').length;
+    const checkedCheckboxes = $('#targets-checklist-body input[type="checkbox"]:checked').length;
+    $('#check-all').prop('checked', allCheckboxes > 0 && allCheckboxes === checkedCheckboxes);
+    
+    // 선택된 타겟 수 업데이트
+    updateSelectedTargetsCount();
+});
+
     try {
         // 모든 제품군 로드
         const productGroups = await api.getProductGroups();
         
         // 빈 테이블 표시
         targetChecklistBody.innerHTML = '';
+        
+        // 테이블에 압축 클래스 추가
+        document.querySelector('#targets-checklist').classList.add('table-sm');
         
         // 선택된 타겟 ID 목록 (기존에 선택된 타겟 확인용)
         const selectedTargetIds = targetManager.getAllTargets().map(t => t.targetId);
@@ -1040,23 +1076,25 @@ function initializeDateRangePicker() {
                     const isChecked = selectedTargetIds.includes(target.id);
                     
                     const row = document.createElement('tr');
+                    row.style.lineHeight = '1.2'; // 행 높이 축소
                     row.innerHTML = `
-                        <td class="text-center">
+                        <td class="text-center py-1"> <!-- padding-y 축소 -->
                             <div class="icheck-primary">
                                 <input type="checkbox" id="target-check-${target.id}" 
-                                       data-product-group-id="${productGroup.id}"
-                                       data-product-group-name="${productGroup.name}"
-                                       data-process-id="${process.id}"
-                                       data-process-name="${process.name}"
-                                       data-target-id="${target.id}"
-                                       data-target-name="${target.name}"
-                                       ${isChecked ? 'checked' : ''}>
+                                    class="target-checkbox"
+                                    data-product-group-id="${productGroup.id}"
+                                    data-product-group-name="${productGroup.name}"
+                                    data-process-id="${process.id}"s
+                                    data-process-name="${process.name}"
+                                    data-target-id="${target.id}"
+                                    data-target-name="${target.name}"
+                                    ${isChecked ? 'checked' : ''}>
                                 <label for="target-check-${target.id}"></label>
                             </div>
                         </td>
-                        <td>${productGroup.name}</td>
-                        <td>${process.name}</td>
-                        <td>${target.name}</td>
+                        <td class="py-1">${productGroup.name}</td> <!-- padding-y 축소 -->
+                        <td class="py-1">${process.name}</td> <!-- padding-y 축소 -->
+                        <td class="py-1">${target.name}</td> <!-- padding-y 축소 -->
                     `;
                     
                     targetChecklistBody.appendChild(row);
@@ -1102,58 +1140,68 @@ function initializeDateRangePicker() {
  function setupTargetSearchFilter() {
     const searchInput = document.getElementById('target-search');
     
-    searchInput.addEventListener('input', function() {
-        const searchText = this.value.toLowerCase();
+    // 전체 선택 체크박스 이벤트 처리 - 완전히 새롭게 구현
+    document.addEventListener('DOMContentLoaded', function() {
+        // 전체 선택 체크박스에 직접 이벤트 리스너 추가
+        $(document).on('click', '#check-all', function() {
+            console.log('전체 선택 체크박스 클릭됨:', this.checked);
+            // 모든 개별 체크박스에 같은 체크 상태 적용
+            $('#targets-checklist-body input[type="checkbox"]').prop('checked', this.checked);
+            
+            // 선택된 타겟 수 업데이트
+            updateSelectedTargetsCount();
+        });
         
-        // 모든 행을 순회하며 검색어에 맞는 행만 표시
-        document.querySelectorAll('#targets-checklist-body tr').forEach(row => {
-            const productGroupText = row.cells[1]?.textContent.toLowerCase() || '';
-            const processText = row.cells[2]?.textContent.toLowerCase() || '';
-            const targetText = row.cells[3]?.textContent.toLowerCase() || '';
+        // 개별 체크박스 변경 이벤트
+        $(document).on('change', '#targets-checklist-body input[type="checkbox"]', function() {
+            console.log('개별 체크박스 변경됨');
+            // 전체 체크박스 상태 업데이트
+            updateCheckAllStatus();
             
-            // 검색어가 제품군, 공정, 타겟 이름 중 하나에 포함되어 있으면 표시
-            const isMatch = productGroupText.includes(searchText) || 
-                          processText.includes(searchText) || 
-                          targetText.includes(searchText);
-            
-            row.style.display = isMatch ? '' : 'none';
+            // 선택된 타겟 수 업데이트
+            updateSelectedTargetsCount();
         });
     });
- }
- 
- // 타겟 추가 모달에서 저장 버튼 클릭 - 체크박스 기반으로 수정
- document.getElementById('save-targets-btn').addEventListener('click', () => {
-    // 기존 타겟 모두 제거
-    targetManager.clearTargets();
-    
-    // 체크된 타겟 가져오기
-    const checkedCheckboxes = document.querySelectorAll('#targets-checklist-body input[type="checkbox"]:checked');
-    
-    // 각 체크된 체크박스에 대해
-    checkedCheckboxes.forEach(checkbox => {
-        const targetData = {
-            productGroupId: parseInt(checkbox.getAttribute('data-product-group-id')),
-            productGroupName: checkbox.getAttribute('data-product-group-name'),
-            processId: parseInt(checkbox.getAttribute('data-process-id')),
-            processName: checkbox.getAttribute('data-process-name'),
-            targetId: parseInt(checkbox.getAttribute('data-target-id')),
-            targetName: checkbox.getAttribute('data-target-name')
-        };
+
+    // 전체 선택 체크박스 상태 업데이트 함수
+    function updateCheckAllStatus() {
+        console.log('전체 선택 상태 업데이트');
+        const totalCheckboxes = $('#targets-checklist-body input[type="checkbox"]').length;
+        const checkedCount = $('#targets-checklist-body input[type="checkbox"]:checked').length;
         
-        // 타겟 관리자에 타겟 추가
-        targetManager.addTarget(targetData);
+        console.log(`체크박스 상태: ${checkedCount}/${totalCheckboxes}`);
+        
+        // 모든 체크박스가 체크되어 있으면 전체 선택도 체크
+        $('#check-all').prop('checked', totalCheckboxes > 0 && checkedCount === totalCheckboxes);
+    }
+
+    // 모달이 열릴 때 이벤트에 추가
+    $('#add-targets-modal').on('shown.bs.modal', function() {
+        console.log('모달이 열림');
+        // 모달이 완전히 표시된 후 체크박스 상태 초기화
+        setTimeout(function() {
+            // 1. 전체 선택 체크박스 초기화
+            $('#check-all').prop('checked', false);
+            
+            // 2. 선택된 타겟 ID 목록 가져오기
+            const selectedTargetIds = targetManager.getAllTargets().map(t => t.targetId);
+            console.log('선택된 타겟 IDs:', selectedTargetIds);
+            
+            // 3. 타겟 체크박스 상태 설정
+            $('#targets-checklist-body input[type="checkbox"]').each(function() {
+                const targetId = parseInt($(this).attr('data-target-id'));
+                $(this).prop('checked', selectedTargetIds.includes(targetId));
+            });
+            
+            // 4. 전체 선택 상태 업데이트
+            updateCheckAllStatus();
+            
+            // 5. 선택된 타겟 수 업데이트
+            updateSelectedTargetsCount();
+        }, 100);
     });
-    
-    // 모달 닫기
-    $('#add-targets-modal').modal('hide');
-    
-    // 선택된 타겟 표시 업데이트
-    updateSelectedTargetsDisplay();
-    
-    // 모든 차트 새로 로드
-    refreshAllCharts();
- });
- 
+}
+
  // 단일 차트 로드
  async function loadChart(targetInfo, startDate, endDate) {
     try {
