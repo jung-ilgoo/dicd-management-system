@@ -26,9 +26,7 @@ class TargetManager {
     // 타겟 추가
     addTarget(target) {
         // 이미 존재하는 타겟인지 확인
-        const exists = this.targets.some(t => 
-            t.targetId === target.targetId
-        );
+        const exists = this.targets.some(t => t.targetId === target.targetId);
         
         if (!exists) {
             this.targets.push(target);
@@ -90,7 +88,7 @@ class ChartManager {
         
         // 이미 존재하는 차트인 경우 업데이트
         if (this.charts[chartId]) {
-            this.updateChart(targetInfo, data, specData);
+            this.updateChart(targetInfo.targetId, data, specData);
             return;
         }
         
@@ -199,10 +197,6 @@ class ChartManager {
                 wafer_no: item.wafer_no || ''
             };
         });
-        
-        // X축 레이블 (시작, 끝 날짜)
-        const startDate = sortedData.length > 0 ? new Date(sortedData[0].created_at) : new Date();
-        const endDate = sortedData.length > 0 ? new Date(sortedData[sortedData.length - 1].created_at) : new Date();
         
         const chartData = {
             datasets: [
@@ -556,31 +550,25 @@ class DataLoader {
                 target_id: targetId
             };
             
-            // 날짜 범위 처리 - 백엔드가 datetime 형식 또는 days 파라미터를 사용
+            // 날짜 범위 처리
             if (startDate && endDate) {
-                // start_date와 end_date가 문자열로 제공될 경우
-                // 백엔드 API 호출을 적절히 수정해야 합니다
-                
-                // 방법 1: 직접 날짜 범위 전달 (API가 이를 지원한다면)
                 params.start_date = startDate;
                 params.end_date = endDate;
                 
-                // 방법 2: days 파라미터 계산 (현재 API가 이를 사용하는 경우)
+                // days 계산 (백엔드가 days 파라미터를 사용하는 경우를 위해)
                 const start = new Date(startDate);
                 const end = new Date(endDate);
                 const today = new Date();
                 
-                // 지정된 날짜 범위가 현재부터 몇 일 전인지 계산
                 const diffTime = Math.abs(today - start);
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                 
-                // 백엔드가 days 파라미터를 사용하는 경우
                 params.days = diffDays + 1; // 오늘을 포함하기 위해 +1
             }
             
             const response = await api.getMeasurements(params);
             
-            // 응답 필터링 - 백엔드가 직접 날짜 필터링을 지원하지 않는 경우
+            // 날짜 필터링 (백엔드가 직접 필터링을 지원하지 않는 경우)
             let filteredResponse = response;
             
             if (startDate && endDate) {
@@ -678,17 +666,12 @@ const chartManager = new ChartManager();
 const dataLoader = new DataLoader();
 
 // DOM 요소 참조
-let dateRangePicker;
 let productGroupSelect;
 let processSelect;
 let targetSelect;
 
 // 초기화 함수
 async function initialize() {
-    // DOM 요소 참조 초기화
-    productGroupSelect = document.getElementById('product-group-select');
-    processSelect = document.getElementById('process-select');
-    targetSelect = document.getElementById('target-select');
     
     // 이벤트 리스너 설정
     setupEventListeners();
@@ -710,28 +693,6 @@ async function initialize() {
 
 // 이벤트 리스너 설정
 function setupEventListeners() {
-    // 제품군 선택 변경 시 공정 목록 업데이트
-    productGroupSelect.addEventListener('change', async () => {
-        const productGroupId = productGroupSelect.value;
-        await loadProcesses(productGroupId);
-        processSelect.disabled = !productGroupId;
-        targetSelect.disabled = true;
-        targetSelect.innerHTML = '<option value="">타겟 선택</option>';
-        document.getElementById('add-target-btn').disabled = true;
-    });
-    
-    // 공정 선택 변경 시 타겟 목록 업데이트
-    processSelect.addEventListener('change', async () => {
-        const processId = processSelect.value;
-        await loadTargets(processId);
-        targetSelect.disabled = !processId;
-        document.getElementById('add-target-btn').disabled = true;
-    });
-    
-    // 타겟 선택 변경 시 추가 버튼 활성화
-    targetSelect.addEventListener('change', () => {
-        document.getElementById('add-target-btn').disabled = !targetSelect.value;
-    });
     
     // 빠른 날짜 선택 버튼 클릭
     document.querySelectorAll('[data-range]').forEach(button => {
@@ -751,14 +712,8 @@ function setupEventListeners() {
             document.getElementById('date-range').value = 
                 `${startDate.format('YYYY-MM-DD')} - ${endDate.format('YYYY-MM-DD')}`;
             
-            // 모든 차트 제거 후 새로 그리기
-            chartManager.removeAllCharts();
-            
-            // 데이터 캐시 무효화
-            dataLoader.invalidateCache();
-            
-            // 모든 타겟에 대해 차트 새로 생성
-            loadAllCharts();
+            // 데이터 갱신
+            refreshAllCharts();
         });
     });
     
@@ -776,22 +731,39 @@ function setupEventListeners() {
     document.getElementById('add-targets-btn').addEventListener('click', () => {
         $('#add-targets-modal').modal('show');
     });
+}
+
+// 모달에서 선택한 타겟 저장을 처리하는 새 함수
+function handleSaveTargetsFromModal() {
+    // 기존 타겟 모두 제거
+    targetManager.clearTargets();
     
-    // 타겟 추가 모달에서 추가 버튼 클릭
-    document.getElementById('add-target-btn').addEventListener('click', () => {
-        addTargetToTable();
+    // 체크된 타겟 가져오기
+    const checkedCheckboxes = document.querySelectorAll('#targets-checklist-body input[type="checkbox"]:checked');
+    
+    // 각 체크된 체크박스에 대해
+    checkedCheckboxes.forEach(checkbox => {
+        const targetData = {
+            productGroupId: parseInt(checkbox.getAttribute('data-product-group-id')),
+            productGroupName: checkbox.getAttribute('data-product-group-name'),
+            processId: parseInt(checkbox.getAttribute('data-process-id')),
+            processName: checkbox.getAttribute('data-process-name'),
+            targetId: parseInt(checkbox.getAttribute('data-target-id')),
+            targetName: checkbox.getAttribute('data-target-name')
+        };
+        
+        // 타겟 관리자에 타겟 추가
+        targetManager.addTarget(targetData);
     });
     
-    // 타겟 추가 모달에서 저장 버튼 클릭
-    document.getElementById('save-targets-btn').addEventListener('click', () => {
-        $('#add-targets-modal').modal('hide');
-        
-        // 선택된 타겟 표시 업데이트
-        updateSelectedTargetsDisplay();
-        
-        // 모든 차트 로드
-        loadAllCharts();
-    });
+    // 모달 닫기
+    $('#add-targets-modal').modal('hide');
+    
+    // 선택된 타겟 표시 업데이트
+    updateSelectedTargetsDisplay();
+    
+    // 모든 차트 새로 로드
+    refreshAllCharts();
 }
 
 function initializeDateRangePicker() {
@@ -822,23 +794,15 @@ function initializeDateRangePicker() {
     document.getElementById('date-range').value = 
         `${startDate.format('YYYY-MM-DD')} - ${endDate.format('YYYY-MM-DD')}`;
     
-    // 날짜 변경 이벤트 - 완전히 새로 차트 그리기
+    // 날짜 변경 이벤트
     $('#date-range').on('apply.daterangepicker', function(ev, picker) {
         console.log('Date range changed:', picker.startDate.format('YYYY-MM-DD'), picker.endDate.format('YYYY-MM-DD'));
-        
-        // 모든 차트 제거 후 새로 그리기
-        chartManager.removeAllCharts();
-        
-        // 데이터 캐시 무효화
-        dataLoader.invalidateCache();
-        
-        // 모든 타겟에 대해 차트 새로 생성
-        loadAllCharts();
+        refreshAllCharts();
     });
-}
-
-// 제품군 데이터 로드
-async function loadProductGroups() {
+ }
+ 
+ // 제품군 데이터 로드
+ async function loadProductGroups() {
     try {
         const productGroups = await api.getProductGroups();
         
@@ -856,10 +820,10 @@ async function loadProductGroups() {
         console.error('제품군 로드 오류:', error);
         alert('제품군 데이터를 로드하는 중 오류가 발생했습니다.');
     }
-}
-
-// 공정 데이터 로드
-async function loadProcesses(productGroupId) {
+ }
+ 
+ // 공정 데이터 로드
+ async function loadProcesses(productGroupId) {
     if (!productGroupId) return;
     
     try {
@@ -879,10 +843,10 @@ async function loadProcesses(productGroupId) {
         console.error('공정 로드 오류:', error);
         alert('공정 데이터를 로드하는 중 오류가 발생했습니다.');
     }
-}
-
-// 타겟 데이터 로드
-async function loadTargets(processId) {
+ }
+ 
+ // 타겟 데이터 로드
+ async function loadTargets(processId) {
     if (!processId) return;
     
     try {
@@ -902,10 +866,10 @@ async function loadTargets(processId) {
         console.error('타겟 로드 오류:', error);
         alert('타겟 데이터를 로드하는 중 오류가 발생했습니다.');
     }
-}
-
-// 모달에서 타겟 추가
-async function addTargetToTable() {
+ }
+ 
+ // 모달에서 타겟 추가 (단일 함수로 통합)
+ function addTargetToSelectedTable() {
     // 값 가져오기
     const productGroupId = productGroupSelect.value;
     const processId = processSelect.value;
@@ -943,24 +907,6 @@ async function addTargetToTable() {
     targetManager.addTarget(targetData);
     
     // 테이블에 행 추가
-    addTargetToSelectedTable(targetData);
-    
-    // 선택 초기화
-    targetSelect.value = '';
-    document.getElementById('add-target-btn').disabled = true;
-}
-
-// 선택된 타겟 테이블에 행 추가
-function addTargetToSelectedTable(targetData) {
-    const tableBody = document.querySelector('#selected-targets-table tbody');
-    
-    // "선택된 타겟 없음" 행 제거
-    const noTargetsRow = document.getElementById('no-selected-targets-row');
-    if (noTargetsRow) {
-        noTargetsRow.remove();
-    }
-    
-    // 새 행 생성
     const newRow = document.createElement('tr');
     newRow.setAttribute('data-target-id', targetData.targetId);
     
@@ -975,6 +921,12 @@ function addTargetToSelectedTable(targetData) {
             </button>
         </td>
     `;
+    
+    // "선택된 타겟 없음" 행 제거
+    const noTargetsRow = document.getElementById('no-selected-targets-row');
+    if (noTargetsRow) {
+        noTargetsRow.remove();
+    }
     
     // 테이블에 행 추가
     tableBody.appendChild(newRow);
@@ -995,10 +947,14 @@ function addTargetToSelectedTable(targetData) {
             `;
         }
     });
-}
-
-// 선택된 타겟 표시 업데이트
-function updateSelectedTargetsDisplay() {
+    
+    // 선택 초기화
+    targetSelect.value = '';
+    document.getElementById('add-target-btn').disabled = true;
+ }
+ 
+ // 선택된 타겟 표시 업데이트
+ function updateSelectedTargetsDisplay() {
     const selectedTargetsContainer = document.getElementById('selected-targets');
     const noTargetsMessage = document.getElementById('no-targets-message');
     
@@ -1052,10 +1008,10 @@ function updateSelectedTargetsDisplay() {
         
         selectedTargetsContainer.appendChild(badge);
     });
-}
-
-// 모달이 열릴 때 모든 타겟 목록 로드
-$('#add-targets-modal').on('show.bs.modal', async function() {
+ }
+ 
+ // 모달이 열릴 때 모든 타겟 목록 로드
+ $('#add-targets-modal').on('show.bs.modal', async function() {
     const targetChecklistBody = document.getElementById('targets-checklist-body');
     targetChecklistBody.innerHTML = '<tr><td colspan="4" class="text-center"><i class="fas fa-spinner fa-spin mr-2"></i>데이터를 불러오는 중...</td></tr>';
     
@@ -1118,32 +1074,32 @@ $('#add-targets-modal').on('show.bs.modal', async function() {
         console.error('타겟 목록 로드 오류:', error);
         targetChecklistBody.innerHTML = '<tr><td colspan="4" class="text-center text-danger">데이터를 불러오는 중 오류가 발생했습니다.</td></tr>';
     }
-});
-
-// 체크박스 이벤트 처리
-$(document).on('change', '#targets-checklist input[type="checkbox"]', function() {
+ });
+ 
+ // 체크박스 이벤트 처리
+ $(document).on('change', '#targets-checklist input[type="checkbox"]', function() {
     // 전체 선택 체크박스 처리
     if (this.id === 'check-all') {
         $('#targets-checklist-body input[type="checkbox"]').prop('checked', this.checked);
-    } else {
-        // 개별 체크박스 변경 시 선택된 타겟 수 업데이트
-        updateSelectedTargetsCount();
-        
-        // 모든 체크박스가 선택되었는지 확인하여 '전체 선택' 체크박스 상태 업데이트
-        const allChecked = $('#targets-checklist-body input[type="checkbox"]').length === 
-                         $('#targets-checklist-body input[type="checkbox"]:checked').length;
-        $('#check-all').prop('checked', allChecked);
     }
-});
-
-// 선택된 타겟 수 업데이트 함수
-function updateSelectedTargetsCount() {
+    
+    // 선택된 타겟 수 업데이트
+    updateSelectedTargetsCount();
+    
+    // 모든 체크박스가 선택되었는지 확인하여 '전체 선택' 체크박스 상태 업데이트
+    const allCheckboxes = $('#targets-checklist-body input[type="checkbox"]').length;
+    const checkedCheckboxes = $('#targets-checklist-body input[type="checkbox"]:checked').length;
+    $('#check-all').prop('checked', allCheckboxes === checkedCheckboxes);
+ });
+ 
+ // 선택된 타겟 수 업데이트 함수
+ function updateSelectedTargetsCount() {
     const count = $('#targets-checklist-body input[type="checkbox"]:checked').length;
     $('#selected-targets-count').text(count);
-}
-
-// 검색 필터 설정
-function setupTargetSearchFilter() {
+ }
+ 
+ // 검색 필터 설정
+ function setupTargetSearchFilter() {
     const searchInput = document.getElementById('target-search');
     
     searchInput.addEventListener('input', function() {
@@ -1163,10 +1119,10 @@ function setupTargetSearchFilter() {
             row.style.display = isMatch ? '' : 'none';
         });
     });
-}
-
-// 타겟 추가 모달에서 저장 버튼 클릭 - 체크박스 기반으로 수정
-document.getElementById('save-targets-btn').addEventListener('click', () => {
+ }
+ 
+ // 타겟 추가 모달에서 저장 버튼 클릭 - 체크박스 기반으로 수정
+ document.getElementById('save-targets-btn').addEventListener('click', () => {
     // 기존 타겟 모두 제거
     targetManager.clearTargets();
     
@@ -1196,14 +1152,11 @@ document.getElementById('save-targets-btn').addEventListener('click', () => {
     
     // 모든 차트 새로 로드
     refreshAllCharts();
-});
-
-// 단일 차트 로드
-async function loadChart(targetInfo, startDate, endDate) {
+ });
+ 
+ // 단일 차트 로드
+ async function loadChart(targetInfo, startDate, endDate) {
     try {
-        // 데이터 로딩 표시
-        document.getElementById('loading-indicator').style.display = 'block';
-        
         // 측정 데이터 로드 - 날짜 범위 명시적 전달
         const measurements = await dataLoader.loadMeasurementData(targetInfo.targetId, startDate, endDate);
         
@@ -1220,10 +1173,10 @@ async function loadChart(targetInfo, startDate, endDate) {
     } catch (error) {
         console.error(`차트 로드 오류 (타겟 ID: ${targetInfo.targetId}):`, error);
     }
-}
-
-// 모든 차트 로드
-async function loadAllCharts() {
+ }
+ 
+ // 모든 차트 로드
+ async function loadAllCharts() {
     try {
         const targets = targetManager.getAllTargets();
         
@@ -1243,7 +1196,6 @@ async function loadAllCharts() {
         
         // 모든 차트 로드
         for (const target of targets) {
-            // 각 타겟에 대해 현재 날짜 범위로 데이터를 새로 불러와서 차트 생성
             await loadChart(target, startDateStr, endDateStr);
         }
     } catch (error) {
@@ -1253,10 +1205,10 @@ async function loadAllCharts() {
         // 로딩 숨기기
         document.getElementById('loading-indicator').style.display = 'none';
     }
-}
-
-// 모든 차트 새로고침
-async function refreshAllCharts() {
+ }
+ 
+ // 모든 차트 새로고침
+ async function refreshAllCharts() {
     try {
         // 모든 차트 제거
         chartManager.removeAllCharts();
@@ -1269,9 +1221,9 @@ async function refreshAllCharts() {
     } catch (error) {
         console.error('차트 새로고침 오류:', error);
     }
-}
-
-// 페이지 로드 시 초기화
-$(document).ready(function() {
+ }
+ 
+ // 페이지 로드 시 초기화
+ $(document).ready(function() {
     initialize();
-});
+ });
