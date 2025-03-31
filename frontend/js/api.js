@@ -270,22 +270,6 @@ class API {
         return this.delete(`${this.endpoints.PROCESSES}/${processId}`);
     }
 
-    generateWeeklyReport(targetId, date = null) {
-        const params = date ? { date } : {};
-        const queryParams = new URLSearchParams(params).toString();
-        const url = `${this.baseUrl}${this.endpoints.REPORTS}/weekly/${targetId}${queryParams ? '?' + queryParams : ''}`;
-        window.open(url, '_blank');
-    }
-            
-    generateMonthlyReport(targetId, year = null, month = null) {
-        const params = {};
-        if (year !== null) params.year = year;
-        if (month !== null) params.month = month;
-        const queryParams = new URLSearchParams(params).toString();
-        const url = `${this.baseUrl}${this.endpoints.REPORTS}/monthly/${targetId}${queryParams ? '?' + queryParams : ''}`;
-        window.open(url, '_blank');
-    }
-
     // 분포 분석 관련 메서드 (특별 처리)
     async analyzeDistribution(targetId, days = 30) {
         // /api가 중복되므로 기본 URL에서 /api를 제거한 URL 사용
