@@ -183,24 +183,26 @@ class ChartManager {
         document.getElementById('empty-charts-message').style.display = 'none';
     }
     
-    // 2. 차트 데이터 준비 함수 수정 - 데이터 정렬 및 겹치는 포인트 해결
     prepareChartData(data, specData) {
         // 데이터를 시간순으로 정렬
         const sortedData = [...data].sort((a, b) => 
             new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
         );
         
-        // 각 데이터 포인트에 고유한 시간 값 부여 (같은 날짜라도 시간값을 조금씩 다르게)
+        // 시퀀스 기반으로 데이터 포인트 생성 (X축은 인덱스)
         const values = sortedData.map((item, index) => {
-            const date = new Date(item.created_at);
-            // 같은 날짜의 경우 시간에 약간의 차이를 둠 (초 단위로)
-            date.setSeconds(date.getSeconds() + index);
             return {
-                x: date,
+                x: index,  // 인덱스를 X값으로 사용
                 y: item.avg_value,
-                originalDate: new Date(item.created_at) // 원본 날짜 저장 (툴팁 표시용)
+                created_at: item.created_at,  // 날짜 정보 저장
+                lot_no: item.lot_no || '',    // 추가 정보 저장 (있는 경우)
+                wafer_no: item.wafer_no || ''
             };
         });
+        
+        // X축 레이블 (시작, 끝 날짜)
+        const startDate = sortedData.length > 0 ? new Date(sortedData[0].created_at) : new Date();
+        const endDate = sortedData.length > 0 ? new Date(sortedData[sortedData.length - 1].created_at) : new Date();
         
         const chartData = {
             datasets: [
@@ -210,8 +212,8 @@ class ChartManager {
                     borderColor: this.chartColors[0],
                     backgroundColor: 'rgba(52, 144, 220, 0.1)',
                     borderWidth: 2,
-                    pointRadius: 2,
-                    pointHoverRadius: 4,
+                    pointRadius: 3,
+                    pointHoverRadius: 5,
                     fill: false,
                     tension: 0.1
                 }
@@ -220,17 +222,16 @@ class ChartManager {
         
         // SPEC 라인 추가
         if (specData) {
-            const timeRange = values.map(v => v.x);
-            const minTime = timeRange.length > 0 ? Math.min(...timeRange.map(d => d.getTime())) : new Date().getTime() - 86400000;
-            const maxTime = timeRange.length > 0 ? Math.max(...timeRange.map(d => d.getTime())) : new Date().getTime();
+            const xMin = 0;
+            const xMax = values.length - 1;
             
             // USL 라인
             if (specData.usl !== undefined) {
                 chartData.datasets.push({
                     label: 'USL',
                     data: [
-                        { x: new Date(minTime), y: specData.usl },
-                        { x: new Date(maxTime), y: specData.usl }
+                        { x: xMin, y: specData.usl },
+                        { x: xMax, y: specData.usl }
                     ],
                     borderColor: 'rgba(231, 76, 60, 0.8)',
                     borderWidth: 2,
@@ -245,8 +246,8 @@ class ChartManager {
                 chartData.datasets.push({
                     label: 'LSL',
                     data: [
-                        { x: new Date(minTime), y: specData.lsl },
-                        { x: new Date(maxTime), y: specData.lsl }
+                        { x: xMin, y: specData.lsl },
+                        { x: xMax, y: specData.lsl }
                     ],
                     borderColor: 'rgba(231, 76, 60, 0.8)',
                     borderWidth: 2,
@@ -262,8 +263,8 @@ class ChartManager {
                 chartData.datasets.push({
                     label: 'TARGET',
                     data: [
-                        { x: new Date(minTime), y: target },
-                        { x: new Date(maxTime), y: target }
+                        { x: xMin, y: target },
+                        { x: xMax, y: target }
                     ],
                     borderColor: 'rgba(52, 152, 219, 0.8)',
                     borderWidth: 2,
@@ -277,7 +278,6 @@ class ChartManager {
         return chartData;
     }
 
-    // 3. 차트 옵션 함수 수정 - 툴팁 포맷 수정하여 원본 날짜 표시
     getChartOptions(specData) {
         let suggestedMax, suggestedMin;
         
@@ -302,31 +302,62 @@ class ChartManager {
                     mode: 'index',
                     intersect: false,
                     callbacks: {
-                        // 툴팁에 원본 날짜 표시
                         title: function(tooltipItems) {
-                            if (tooltipItems.length > 0 && tooltipItems[0].raw.originalDate) {
-                                return moment(tooltipItems[0].raw.originalDate).format('YYYY-MM-DD HH:mm');
+                            if (tooltipItems.length > 0 && tooltipItems[0].raw.created_at) {
+                                return new Date(tooltipItems[0].raw.created_at).toLocaleString();
                             }
-                            return moment(tooltipItems[0].raw.x).format('YYYY-MM-DD HH:mm');
+                            return '';
+                        },
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            if (context.parsed.y !== null) {
+                                label += context.parsed.y.toFixed(3);
+                            }
+                            return label;
+                        },
+                        afterLabel: function(context) {
+                            const dataPoint = context.raw;
+                            let labels = [];
+                            
+                            if (dataPoint.lot_no) {
+                                labels.push(`Lot No: ${dataPoint.lot_no}`);
+                            }
+                            if (dataPoint.wafer_no) {
+                                labels.push(`Wafer No: ${dataPoint.wafer_no}`);
+                            }
+                            
+                            return labels;
                         }
                     }
                 }
             },
             scales: {
                 x: {
-                    type: 'time',
-                    time: {
-                        unit: 'day',
-                        displayFormats: {
-                            day: 'MM/DD'
-                        }
-                    },
+                    type: 'linear',
                     grid: {
                         display: false
                     },
-                    // 중복 데이터 포인트를 더 잘 보이게 하기 위한 추가 설정
                     ticks: {
-                        source: 'data'
+                        // 시작과 끝 날짜만 표시
+                        callback: function(value, index, values) {
+                            // 첫 번째와 마지막 틱만 표시
+                            if (index === 0 || index === values.length - 1) {
+                                const dataset = this.chart.data.datasets[0];
+                                if (dataset && dataset.data) {
+                                    // 첫 번째 틱은 시작 날짜, 마지막 틱은 끝 날짜
+                                    if (index === 0 && dataset.data.length > 0) {
+                                        return new Date(dataset.data[0].created_at).toLocaleDateString();
+                                    } else if (index === values.length - 1 && dataset.data.length > 0) {
+                                        const lastIdx = dataset.data.length - 1;
+                                        return new Date(dataset.data[lastIdx].created_at).toLocaleDateString();
+                                    }
+                                }
+                            }
+                            return '';  // 다른 틱은 빈 문자열 반환하여 표시하지 않음
+                        }
                     }
                 },
                 y: {
@@ -525,24 +556,50 @@ class DataLoader {
                 target_id: targetId
             };
             
-            // 날짜 필터 추가
-            if (startDate) {
+            // 날짜 범위 처리 - 백엔드가 datetime 형식 또는 days 파라미터를 사용
+            if (startDate && endDate) {
+                // start_date와 end_date가 문자열로 제공될 경우
+                // 백엔드 API 호출을 적절히 수정해야 합니다
+                
+                // 방법 1: 직접 날짜 범위 전달 (API가 이를 지원한다면)
                 params.start_date = startDate;
-            }
-            
-            if (endDate) {
                 params.end_date = endDate;
+                
+                // 방법 2: days 파라미터 계산 (현재 API가 이를 사용하는 경우)
+                const start = new Date(startDate);
+                const end = new Date(endDate);
+                const today = new Date();
+                
+                // 지정된 날짜 범위가 현재부터 몇 일 전인지 계산
+                const diffTime = Math.abs(today - start);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                
+                // 백엔드가 days 파라미터를 사용하는 경우
+                params.days = diffDays + 1; // 오늘을 포함하기 위해 +1
             }
             
             const response = await api.getMeasurements(params);
             
+            // 응답 필터링 - 백엔드가 직접 날짜 필터링을 지원하지 않는 경우
+            let filteredResponse = response;
+            
+            if (startDate && endDate) {
+                const startDateTime = new Date(startDate).getTime();
+                const endDateTime = new Date(endDate).getTime() + 86400000; // 끝 날짜를 포함하기 위해 하루 추가
+                
+                filteredResponse = response.filter(item => {
+                    const itemDate = new Date(item.created_at).getTime();
+                    return itemDate >= startDateTime && itemDate <= endDateTime;
+                });
+            }
+            
             // 데이터 캐싱
             this.cache[cacheKey] = {
-                data: response,
+                data: filteredResponse,
                 timestamp: Date.now()
             };
             
-            return response;
+            return filteredResponse;
         } catch (error) {
             console.error('측정 데이터 로드 오류:', error);
             throw error;
@@ -1067,11 +1124,15 @@ async function loadAllCharts() {
 
 // 모든 차트 새로고침
 async function refreshAllCharts() {
-    // 캐시 무효화
-    dataLoader.invalidateCache();
-    
-    // 모든 차트 로드
-    await loadAllCharts();
+    try {
+        // 캐시 무효화
+        dataLoader.invalidateCache();
+        
+        // 모든 차트 로드
+        await loadAllCharts();
+    } catch (error) {
+        console.error('차트 새로고침 오류:', error);
+    }
 }
 
 // 페이지 로드 시 초기화
