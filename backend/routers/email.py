@@ -56,11 +56,15 @@ async def send_email(
                 import json
                 recipients = json.loads(recipients)
             except json.JSONDecodeError:
-                # 쉼표로 구분된 이메일 목록일 수도 있음
-                recipients = [r.strip() for r in recipients.split(',')]
+                import re
+                recipients = re.findall(r'[\w\.-]+@[\w\.-]+', recipients)
         
-        # 유효한 이메일 주소만 남기기
-        recipients = [r for r in recipients if r and '@' in r]
+        # 대괄호나 따옴표 제거, 공백 제거
+        recipients = [
+            r.strip(' []"\'') 
+            for r in recipients 
+            if r and '@' in r.strip()
+        ]
         
         if not recipients:
             raise HTTPException(status_code=400, detail="유효한 수신자가 없습니다.")

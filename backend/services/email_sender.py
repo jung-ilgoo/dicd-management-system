@@ -33,19 +33,14 @@ class EmailSender:
             msg = MIMEMultipart()
             msg['From'] = self.username
             
-            # 수신자가 리스트인 경우 문자열로 변환
-            if isinstance(recipients, list):
-                recipients = [r.strip() for r in recipients if r.strip()]  # 빈 이메일 제거
-                if not recipients:
-                    print("수신자 목록이 비어있습니다.")
-                    return False
+            # 수신자 처리 로직 개선
+            recipients = [r.strip() for r in recipients if r and '@' in r] 
+            
+            if not recipients:
+                print("수신자 목록이 비어있습니다.")
+                return False
                 
-                to_str = ', '.join(recipients)
-            else:
-                to_str = recipients
-                recipients = [recipients]  # SMTP.sendmail()에는 리스트가 필요
-                
-            msg['To'] = to_str
+            msg['To'] = ', '.join(recipients)
             msg['Subject'] = subject
             
             # 본문 추가
