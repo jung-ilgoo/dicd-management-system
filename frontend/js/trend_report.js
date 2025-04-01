@@ -672,6 +672,10 @@ let targetSelect;
 
 // 초기화 함수
 async function initialize() {
+    // DOM 요소 참조 초기화
+    productGroupSelect = document.querySelector('#target1-product-group');
+    processSelect = document.querySelector('#target1-process');
+    targetSelect = document.querySelector('#target1-target');
     
     // 이벤트 리스너 설정
     setupEventListeners();
@@ -730,6 +734,11 @@ function setupEventListeners() {
     // 타겟 추가 버튼 클릭 (모달 열기)
     document.getElementById('add-targets-btn').addEventListener('click', () => {
         $('#add-targets-modal').modal('show');
+    });
+
+    // 타겟 저장 버튼 클릭
+    document.getElementById('save-targets-btn').addEventListener('click', () => {
+        handleSaveTargetsFromModal();
     });
 }
 
@@ -802,25 +811,21 @@ function initializeDateRangePicker() {
  }
  
  // 제품군 데이터 로드
- async function loadProductGroups() {
+async function loadProductGroups() {
     try {
+        // 제품군 데이터 가져오기
         const productGroups = await api.getProductGroups();
         
-        // 옵션 초기화
-        productGroupSelect.innerHTML = '<option value="">제품군 선택</option>';
+        // 모달이 열릴 때 데이터를 사용할 수 있도록 전역 변수에 저장
+        window.cachedProductGroups = productGroups;
         
-        // 옵션 추가
-        productGroups.forEach(group => {
-            const option = document.createElement('option');
-            option.value = group.id;
-            option.textContent = group.name;
-            productGroupSelect.appendChild(option);
-        });
+        // 선택된 타겟 표시 업데이트만 수행하고 DOM 조작은 하지 않음
+        console.log('제품군 데이터 로드 완료:', productGroups.length);
     } catch (error) {
         console.error('제품군 로드 오류:', error);
         alert('제품군 데이터를 로드하는 중 오류가 발생했습니다.');
     }
- }
+}
  
  // 공정 데이터 로드
  async function loadProcesses(productGroupId) {
@@ -1010,8 +1015,8 @@ function initializeDateRangePicker() {
     });
  }
  
- // 모달이 열릴 때 모든 타겟 목록 로드
- $('#add-targets-modal').on('show.bs.modal', async function() {
+// 모달이 열릴 때 모든 타겟 목록 로드
+$('#add-targets-modal').on('show.bs.modal', async function() {
     // 모달 다이얼로그 높이 최적화
     const modalDialog = this.querySelector('.modal-dialog');
     modalDialog.style.maxHeight = '90vh'; // viewport 높이의 90%
@@ -1027,78 +1032,79 @@ function initializeDateRangePicker() {
     targetChecklistBody.innerHTML = '<tr><td colspan="4" class="text-center"><i class="fas fa-spinner fa-spin mr-2"></i>데이터를 불러오는 중...</td></tr>';
     
     // 테이블 컨테이너의 최대 높이를 늘리고 행 간격 축소
-    document.querySelector('.table-responsive').style.maxHeight = '500px';
+    const tableResponsive = document.querySelector('.table-responsive');
+    if (tableResponsive) {
+        tableResponsive.style.maxHeight = '500px';
+    }
     
- // 모달이 닫힐 때 이벤트 처리 추가
-$('#add-targets-modal').on('hidden.bs.modal', function() {
-    // 모달이 닫힐 때 체크박스 상태를 현재 선택된 타겟과 동기화
-    const selectedTargetIds = targetManager.getAllTargets().map(t => t.targetId);
-    
-    $('#targets-checklist-body input[type="checkbox"]').each(function() {
-        const targetId = parseInt($(this).attr('data-target-id'));
-        $(this).prop('checked', selectedTargetIds.includes(targetId));
-    });
-    
-    // 전체 선택 상태 업데이트
-    const allCheckboxes = $('#targets-checklist-body input[type="checkbox"]').length;
-    const checkedCheckboxes = $('#targets-checklist-body input[type="checkbox"]:checked').length;
-    $('#check-all').prop('checked', allCheckboxes > 0 && allCheckboxes === checkedCheckboxes);
-    
-    // 선택된 타겟 수 업데이트
-    updateSelectedTargetsCount();
-});
-
     try {
-        // 모든 제품군 로드
-        const productGroups = await api.getProductGroups();
+        // 캐시된 제품군 데이터가 없으면 새로 가져오기
+        if (!window.cachedProductGroups) {
+            window.cachedProductGroups = await api.getProductGroups();
+        }
+        
+        const productGroups = window.cachedProductGroups;
         
         // 빈 테이블 표시
         targetChecklistBody.innerHTML = '';
         
         // 테이블에 압축 클래스 추가
-        document.querySelector('#targets-checklist').classList.add('table-sm');
+        const targetsChecklist = document.querySelector('#targets-checklist');
+        if (targetsChecklist) {
+            targetsChecklist.classList.add('table-sm');
+        }
         
         // 선택된 타겟 ID 목록 (기존에 선택된 타겟 확인용)
         const selectedTargetIds = targetManager.getAllTargets().map(t => t.targetId);
         
         // 각 제품군에 대해
         for (const productGroup of productGroups) {
-            // 각 제품군의 공정 로드
-            const processes = await api.getProcesses(productGroup.id);
-            
-            // 각 공정에 대해
-            for (const process of processes) {
-                // 각 공정의 타겟 로드
-                const targets = await api.getTargets(process.id);
+            try {
+                // 각 제품군의 공정 로드
+                const processes = await api.getProcesses(productGroup.id);
                 
-                // 각 타겟에 대해 행 추가
-                for (const target of targets) {
-                    const isChecked = selectedTargetIds.includes(target.id);
-                    
-                    const row = document.createElement('tr');
-                    row.style.lineHeight = '1.2'; // 행 높이 축소
-                    row.innerHTML = `
-                        <td class="text-center py-1"> <!-- padding-y 축소 -->
-                            <div class="icheck-primary">
-                                <input type="checkbox" id="target-check-${target.id}" 
-                                    class="target-checkbox"
-                                    data-product-group-id="${productGroup.id}"
-                                    data-product-group-name="${productGroup.name}"
-                                    data-process-id="${process.id}"s
-                                    data-process-name="${process.name}"
-                                    data-target-id="${target.id}"
-                                    data-target-name="${target.name}"
-                                    ${isChecked ? 'checked' : ''}>
-                                <label for="target-check-${target.id}"></label>
-                            </div>
-                        </td>
-                        <td class="py-1">${productGroup.name}</td> <!-- padding-y 축소 -->
-                        <td class="py-1">${process.name}</td> <!-- padding-y 축소 -->
-                        <td class="py-1">${target.name}</td> <!-- padding-y 축소 -->
-                    `;
-                    
-                    targetChecklistBody.appendChild(row);
+                // 각 공정에 대해
+                for (const process of processes) {
+                    try {
+                        // 각 공정의 타겟 로드
+                        const targets = await api.getTargets(process.id);
+                        
+                        // 각 타겟에 대해 행 추가
+                        for (const target of targets) {
+                            const isChecked = selectedTargetIds.includes(target.id);
+                            
+                            const row = document.createElement('tr');
+                            row.style.lineHeight = '1.2'; // 행 높이 축소
+                            row.innerHTML = `
+                                <td class="text-center py-1"> <!-- padding-y 축소 -->
+                                    <div class="icheck-primary">
+                                        <input type="checkbox" id="target-check-${target.id}" 
+                                            class="target-checkbox"
+                                            data-product-group-id="${productGroup.id}"
+                                            data-product-group-name="${productGroup.name}"
+                                            data-process-id="${process.id}"
+                                            data-process-name="${process.name}"
+                                            data-target-id="${target.id}"
+                                            data-target-name="${target.name}"
+                                            ${isChecked ? 'checked' : ''}>
+                                        <label for="target-check-${target.id}"></label>
+                                    </div>
+                                </td>
+                                <td class="py-1">${productGroup.name}</td> <!-- padding-y 축소 -->
+                                <td class="py-1">${process.name}</td> <!-- padding-y 축소 -->
+                                <td class="py-1">${target.name}</td> <!-- padding-y 축소 -->
+                            `;
+                            
+                            targetChecklistBody.appendChild(row);
+                        }
+                    } catch (targetError) {
+                        console.error(`공정 ID ${process.id}에 대한 타겟 로드 오류:`, targetError);
+                        // 개별 공정 오류는 전체 로딩을 중단하지 않음
+                    }
                 }
+            } catch (processError) {
+                console.error(`제품군 ID ${productGroup.id}에 대한 공정 로드 오류:`, processError);
+                // 개별 제품군 오류는 전체 로딩을 중단하지 않음
             }
         }
         
@@ -1108,11 +1114,16 @@ $('#add-targets-modal').on('hidden.bs.modal', function() {
         // 검색 필터 이벤트 리스너 추가
         setupTargetSearchFilter();
         
+        // 테이블이 비어있는지 확인
+        if (targetChecklistBody.children.length === 0) {
+            targetChecklistBody.innerHTML = '<tr><td colspan="4" class="text-center text-warning">표시할 타겟이 없습니다.</td></tr>';
+        }
+        
     } catch (error) {
         console.error('타겟 목록 로드 오류:', error);
         targetChecklistBody.innerHTML = '<tr><td colspan="4" class="text-center text-danger">데이터를 불러오는 중 오류가 발생했습니다.</td></tr>';
     }
- });
+});
  
  // 체크박스 이벤트 처리
  $(document).on('change', '#targets-checklist input[type="checkbox"]', function() {

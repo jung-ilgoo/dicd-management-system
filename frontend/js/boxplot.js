@@ -179,6 +179,7 @@ function handleTargetChange() {
     $('#analyze-btn').prop('disabled', !targetId);
 }
 
+// 변경 후 (실제 API 호출)
 // 분석 실행
 async function performAnalysis() {
     const targetId = $('#target-select').val();
@@ -191,83 +192,8 @@ async function performAnalysis() {
         // 로딩 표시
         showLoading();
         
-        // 임시 테스트 데이터 (실제로는 API 호출 결과를 사용)
-        const testData = {
-            target_id: targetId,
-            target_name: "테스트 타겟",
-            groups: [
-                {
-                    name: "노광: 노광 1호기",
-                    count: 25,
-                    min: 7.25,
-                    max: 7.74,
-                    median: 7.52,
-                    q1: 7.43,
-                    q3: 7.61,
-                    whisker_min: 7.30,
-                    whisker_max: 7.70,
-                    outliers: [7.25, 7.74]
-                },
-                {
-                    name: "노광: 노광 2호기",
-                    count: 18,
-                    min: 7.28,
-                    max: 7.69,
-                    median: 7.49,
-                    q1: 7.40,
-                    q3: 7.59,
-                    whisker_min: 7.30,
-                    whisker_max: 7.70,
-                    outliers: [7.28]
-                },
-                {
-                    name: "코팅: 코팅 Coater 3C",
-                    count: 30,
-                    min: 7.31,
-                    max: 7.68,
-                    median: 7.51,
-                    q1: 7.44,
-                    q3: 7.58,
-                    whisker_min: 7.30,
-                    whisker_max: 7.70,
-                    outliers: []
-                },
-                {
-                    name: "현상: 현상 1호기",
-                    count: 22,
-                    min: 7.29,
-                    max: 7.71,
-                    median: 7.55,
-                    q1: 7.46,
-                    q3: 7.62,
-                    whisker_min: 7.30,
-                    whisker_max: 7.70,
-                    outliers: [7.71]
-                },
-                {
-                    name: "현상: 현상 2호기",
-                    count: 15,
-                    min: 7.33,
-                    max: 7.67,
-                    median: 7.53,
-                    q1: 7.45,
-                    q3: 7.60,
-                    whisker_min: 7.30,
-                    whisker_max: 7.67,
-                    outliers: []
-                }
-            ],
-            spec: {
-                lsl: 7.3,
-                usl: 7.7
-            }
-        };
-        
-        // 백엔드 API 호출 (실제 구현시 주석 해제)
-        // const boxplotData = await api.getBoxplotData(targetId, groupBy, days);
-        
-        // 테스트용 임시 데이터 사용
-        const boxplotData = testData;
+        // 백엔드 API 호출
+        const boxplotData = await api.getBoxplotData(targetId, groupBy, days);
         
         // 차트 렌더링
         renderSimpleBoxPlot(boxplotData);
@@ -602,14 +528,21 @@ function renderSimpleBoxPlot(data) {
         }
     }
     
-    // 제목 추가
+    // 제목 추가 (조건 정보 포함)
+    const productGroupName = $('#product-group-select option:selected').text();
+    const processName = $('#process-select option:selected').text();
+    const targetName = $('#target-select option:selected').text();
+    const days = $('#days-select').val();
+    const groupBy = $('input[name="group-by"]:checked').val() === 'equipment' ? '장비' : '디바이스';
+
+    // 메인 제목
     const title = document.createElementNS("http://www.w3.org/2000/svg", "text");
     title.setAttribute("x", svgWidth / 2);
-    title.setAttribute("y", margin.top / 2);
+    title.setAttribute("y", margin.top / 2 - 10);
     title.setAttribute("text-anchor", "middle");
     title.setAttribute("font-size", "16");
     title.setAttribute("font-weight", "bold");
-    title.textContent = `${data.target_name || '타겟'} 박스플롯 분석`;
+    title.textContent = `제품군: ${productGroupName} | 공정: ${processName} | 타겟: ${targetName} | 기간: 최근 ${days}일 | 그룹화: ${groupBy} 기준`;
     svg.appendChild(title);
     
     // SVG를 컨테이너에 추가
