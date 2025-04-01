@@ -273,15 +273,22 @@ class ChartManager {
     }
 
     getChartOptions(specData) {
-        let suggestedMax, suggestedMin;
-        
-        if (specData) {
-            if (specData.usl !== undefined) {
-                suggestedMax = specData.usl * 1.1;
-            }
-            
-            if (specData.lsl !== undefined) {
-                suggestedMin = specData.lsl * 0.9;
+        let min, max;
+
+        if (specData && specData.lsl !== undefined && specData.usl !== undefined) {
+            // SPEC 범위(LSL~USL)에 0.1씩 여유를 추가
+            min = specData.lsl - 0.1;
+            max = specData.usl + 0.1;
+        } else {
+            // SPEC 정보가 없는 경우에는 기존 방식대로 동작
+            if (specData) {
+                if (specData.usl !== undefined) {
+                    max = specData.usl * 1.1;
+                }
+                
+                if (specData.lsl !== undefined) {
+                    min = specData.lsl * 0.9;
+                }
             }
         }
         
@@ -355,8 +362,8 @@ class ChartManager {
                     }
                 },
                 y: {
-                    suggestedMin: suggestedMin,
-                    suggestedMax: suggestedMax,
+                    min: min,
+                    max: max,
                     ticks: {
                         precision: 3
                     }
@@ -458,59 +465,120 @@ class ChartManager {
             
             // jsPDF 초기화
             const { jsPDF } = window.jspdf;
-            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pdf = new jsPDF('l', 'mm', 'a4'); // 가로 방향으로 변경
             
             // 페이지 설정
             const pageWidth = pdf.internal.pageSize.getWidth();
             const pageHeight = pdf.internal.pageSize.getHeight();
-            const margin = 10;
-            const contentWidth = pageWidth - (margin * 2);
+            const margin = {
+                top: 8,     // 상단 여백 축소
+                bottom: 5,  // 하단 여백 축소
+                left: 12,   // 좌측 여백
+                right: 12   // 우측 여백
+            };
             
-            // 제목 추가
-            pdf.setFontSize(18);
-            pdf.text('DICD 측정 데이터 추이 보고서', margin, margin + 10);
-            
-            // 날짜 범위 추가
+            // 날짜 범위 가져오기
             const dateRange = document.getElementById('date-range').value;
-            pdf.setFontSize(12);
-            pdf.text(`기간: ${dateRange}`, margin, margin + 20);
             
-            let yPos = margin + 30;
+            // 제목 추가 - 여백 최소화
+            pdf.setFontSize(16); // 제목 크기 약간 축소
+            pdf.text(`DICD Monitoring (${dateRange})`, pageWidth / 2, margin.top + 5, { align: 'center' });
             
-            // 각 차트를 PDF에 추가
-            for (const chartId in this.charts) {
-                const chartInfo = this.charts[chartId];
-                const chartCard = document.getElementById(`chart-card-${chartInfo.targetId}`);
+            // 차트 배치를 위한 설정 - 더 큰 차트
+            const titleSpace = 12; // 제목 공간 축소
+            const chartWidth = (pageWidth - margin.left - margin.right - 8) / 2; // 2열, 중간 간격만 8mm
+            const chartHeight = (pageHeight - margin.top - margin.bottom - titleSpace - 10) / 3; // 3행, 간격 5mm씩
+            
+            const chartIds = Object.keys(this.charts);
+            
+            // 차트 개수에 따라 필요한 페이지 수 계산
+            const chartsPerPage = 6; // 3x2 그리드
+            const totalPages = Math.ceil(chartIds.length / chartsPerPage);
+            
+            for (let page = 0; page < totalPages; page++) {
+                // 첫 페이지가 아니면 새 페이지 추가
+                if (page > 0) {
+                    pdf.addPage();
+                    // 새 페이지에도 제목 추가
+                    pdf.setFontSize(16);
+                    pdf.text(`DICD Monitoring (${dateRange})`, pageWidth / 2, margin.top + 5, { align: 'center' });
+                }
                 
-                if (chartCard) {
-                    // 새 페이지 확인
-                    if (yPos > pageHeight - 60) {
-                        pdf.addPage();
-                        yPos = margin + 10;
-                    }
+                // 현재 페이지의 차트 개수 (마지막 페이지는 남은 차트 수)
+                const chartsOnPage = Math.min(chartsPerPage, chartIds.length - page * chartsPerPage);
+                
+                // 페이지 내 차트 위치 계산 및 추가
+                for (let i = 0; i < chartsOnPage; i++) {
+                    const chartId = chartIds[page * chartsPerPage + i];
+                    const chartInfo = this.charts[chartId];
+                    
+                    // 행과 열 계산 (3x2 그리드)
+                    const row = Math.floor(i / 2); // 0, 0, 1, 1, 2, 2
+                    const col = i % 2; // 0, 1, 0, 1, 0, 1
+                    
+                    // 현재 차트의 x, y 좌표 계산 - 정확한 그리드 위치, 간격 최소화
+                    const x = margin.left + col * (chartWidth + 8); // 중간 간격만 8mm로 설정
+                    const y = margin.top + titleSpace + row * (chartHeight + 5); // 행 간격 5mm로 축소
                     
                     // 차트 제목 가져오기
-                    const chartTitle = chartCard.querySelector('.card-title').textContent;
-                    pdf.setFontSize(14);
-                    pdf.text(chartTitle, margin, yPos);
-                    yPos += 10;
+                    const targetInfo = targetManager.getTargetById(chartInfo.targetId);
                     
-                    // 차트 이미지로 변환
+                    // Cp 값 가져오기 (있는 경우)
+                    let cpValue = '';
+                    const chartCard = document.getElementById(`chart-card-${chartInfo.targetId}`);
+                    if (chartCard) {
+                        const cpBadge = chartCard.querySelector('.cp-badge');
+                        if (cpBadge) {
+                            cpValue = cpBadge.textContent;
+                        }
+                    }
+                    
+                    // 차트 제목 생성: 제품군_STEP_TARGET(Cp:Cp값)
+                    const chartTitle = `${targetInfo.productGroupName}_${targetInfo.processName}_${targetInfo.targetName} (${cpValue})`;
+                    
+                    // 차트 제목 추가 - 차트와 더 가깝게
+                    pdf.setFontSize(8); // 글꼴 크기 축소
+                    pdf.text(chartTitle, x + chartWidth/2, y - 2, { align: 'center' });
+                    
+                    // 차트 캔버스를 이미지로 변환
                     const canvas = document.getElementById(chartId);
+                    
+                    // 차트 비율을 조정하여 Y축 길이 늘리기
+                    // 원본 크기의 비율을 계산하되 높이를 약간 늘림
+                    const originalAspectRatio = canvas.width / canvas.height;
+                    // Y축을 늘리려면 가로세로 비율을 약간 줄임 (0.85를 곱해 세로를 약 15% 늘림)
+                    const adjustedAspectRatio = originalAspectRatio * 0.85;
+                    
+                    // 조정된 비율로 이미지 크기 계산
+                    let imgWidth = chartWidth;
+                    let imgHeight = imgWidth / adjustedAspectRatio; // 높이가 더 커짐
+                    
+                    // 높이가 할당된 공간을 초과하면 조정
+                    if (imgHeight > chartHeight) {
+                        imgHeight = chartHeight;
+                        imgWidth = imgHeight * adjustedAspectRatio;
+                    }
+                    
+                    // 중앙 정렬을 위한 오프셋 계산
+                    const xOffset = (chartWidth - imgWidth) / 2;
+                    
+                    // 캔버스를 이미지로 변환
                     const chartImage = canvas.toDataURL('image/png', 1.0);
                     
-                    // 차트 이미지 추가
-                    const imgHeight = (contentWidth / canvas.width) * canvas.height;
-                    pdf.addImage(chartImage, 'PNG', margin, yPos, contentWidth, imgHeight);
+                    // 차트 주변에 얇은 경계선 그리기
+                    pdf.setDrawColor(230, 230, 230); // 더 연한 회색 테두리
+                    pdf.setLineWidth(0.1); // 더 얇은 선
+                    pdf.rect(x, y, chartWidth, chartHeight);
                     
-                    yPos += imgHeight + 20;
+                    // 차트 이미지 추가 (정확한 위치와 크기로)
+                    pdf.addImage(chartImage, 'PNG', x + xOffset, y, imgWidth, imgHeight);
                 }
             }
             
             // PDF 저장
             const now = new Date();
             const dateStr = now.toISOString().split('T')[0];
-            pdf.save(`DICD_추이보고서_${dateStr}.pdf`);
+            pdf.save(`DICD_Monitoring_${dateStr}.pdf`);
             
         } catch (error) {
             console.error('PDF 내보내기 오류:', error);
@@ -1125,13 +1193,16 @@ $('#add-targets-modal').on('show.bs.modal', async function() {
     }
 });
  
- // 체크박스 이벤트 처리
- $(document).on('change', '#targets-checklist input[type="checkbox"]', function() {
-    // 전체 선택 체크박스 처리
-    if (this.id === 'check-all') {
-        $('#targets-checklist-body input[type="checkbox"]').prop('checked', this.checked);
-    }
+// 체크박스 이벤트 처리
+$(document).on('change', '#check-all', function() {
+    // 전체 선택 체크박스 클릭 시 모든 체크박스에 같은 상태 적용
+    $('#targets-checklist-body input[type="checkbox"]').prop('checked', $(this).prop('checked'));
     
+    // 선택된 타겟 수 업데이트
+    updateSelectedTargetsCount();
+});
+
+$(document).on('change', '#targets-checklist-body input[type="checkbox"]', function() {
     // 선택된 타겟 수 업데이트
     updateSelectedTargetsCount();
     
@@ -1139,7 +1210,7 @@ $('#add-targets-modal').on('show.bs.modal', async function() {
     const allCheckboxes = $('#targets-checklist-body input[type="checkbox"]').length;
     const checkedCheckboxes = $('#targets-checklist-body input[type="checkbox"]:checked').length;
     $('#check-all').prop('checked', allCheckboxes === checkedCheckboxes);
- });
+});
  
  // 선택된 타겟 수 업데이트 함수
  function updateSelectedTargetsCount() {

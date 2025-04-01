@@ -295,5 +295,6 @@ class API {
         });
     }
 }
+
 // API 인스턴스 생성
 const api = new API(API_CONFIG);
