@@ -16,6 +16,9 @@ from backend.routers import duplicate_check
 from backend.routers import distribution as distribution_router
 # 보고서 다운로드 라우터 추가
 from backend.routers import report_downloads
+# 백엔드 이메일 라우터 등록
+from backend.routers import email as email_router
+
 
 # 데이터베이스 테이블 생성
 models.Base.metadata.create_all(bind=database.engine)
@@ -48,6 +51,7 @@ app.include_router(duplicate_check.router)
 app.include_router(distribution_router.router)
 # 보고서 다운로드 라우터 등록
 app.include_router(report_downloads.router)
+app.include_router(email_router.router)
 
 @app.get("/")
 async def root():

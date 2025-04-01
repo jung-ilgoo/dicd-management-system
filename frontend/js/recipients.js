@@ -181,6 +181,27 @@ class ReportSettingsManager {
         
         return this.settings;
     }
+    
+    // 여기에 새 메서드 추가
+    format_subject(template, date, type) {
+        // 날짜 형식 지정
+        const dateStr = date.toLocaleDateString('ko-KR', { 
+            year: 'numeric', 
+            month: '2-digit', 
+            day: '2-digit' 
+        });
+        
+        // {date} 플레이스홀더 대체
+        let subject = template.replace('{date}', dateStr);
+        
+        // {type} 플레이스홀더가 있으면 대체
+        if (subject.includes('{type}')) {
+            const typeStr = type === 'weekly' ? '주간' : '월간';
+            subject = subject.replace('{type}', typeStr);
+        }
+        
+        return subject;
+    }
 }
 
 // 보고서 전송 이력 관리 객체
@@ -680,27 +701,264 @@ function sendTestReport() {
         return recipient ? recipient.email : null;
     }).filter(Boolean);
     
-    // 테스트 보고서 전송 처리 (백엔드 API가 아직 구현되지 않았으므로 모의 처리)
-    simulateReportSending(reportType, targetId, recipients);
+    sendReport(reportType, targetId, recipients);
 }
 
-// 보고서 전송 시뮬레이션
-function simulateReportSending(reportType, targetId, recipients) {
-    // 로딩 메시지 표시
-    showNotification('테스트 보고서를 전송 중입니다...', 'info');
-    
-    // 3초 후 성공 응답 (실제로는 백엔드 API 호출)
-    setTimeout(() => {
-        const status = Math.random() > 0.8 ? 'partial' : 'success'; // 20% 확률로 일부 성공
+// 보고서 전송 함수 
+async function sendReport(reportType, targetId, recipients) {
+    try {
+        // moment 라이브러리 확인
+        if (typeof moment === 'undefined') {
+            throw new Error('moment 라이브러리를 찾을 수 없습니다. 페이지를 새로고침한 후 다시 시도하세요.');
+        }
+
+        // 로딩 메시지 표시
+        showNotification('보고서를 생성하고 전송 중입니다...', 'info');
+        
+        // 날짜 범위 설정 (주간 또는 월간)
+        const endDate = moment();
+        let startDate;
+        
+        if (reportType === 'weekly') {
+            // 주간 보고서: 현재 날짜로부터 7일 전
+            startDate = moment().subtract(6, 'days');
+        } else {
+            // 월간 보고서: 현재 날짜로부터 30일 전
+            startDate = moment().subtract(29, 'days');
+        }
+        
+        // 타겟 정보 가져오기
+        const target = await api.get(`${api.endpoints.TARGETS}/${targetId}`);
+        if (!target) {
+            throw new Error('타겟 정보를 가져올 수 없습니다.');
+        }
+        
+        // 공정 정보 가져오기
+        const process = await api.get(`${api.endpoints.PROCESSES}/${target.process_id}`);
+        if (!process) {
+            throw new Error('공정 정보를 가져올 수 없습니다.');
+        }
+        
+        // 제품군 정보 가져오기
+        const productGroup = await api.get(`${api.endpoints.PRODUCT_GROUPS}/${process.product_group_id}`);
+        if (!productGroup) {
+            throw new Error('제품군 정보를 가져올 수 없습니다.');
+        }
+        
+        // 측정 데이터 가져오기
+        const measurements = await api.getMeasurements({
+            target_id: targetId,
+            start_date: startDate.format('YYYY-MM-DD'),
+            end_date: endDate.format('YYYY-MM-DD')
+        });
+        
+        // SPEC 데이터 가져오기
+        const specData = await api.getActiveSpec(targetId);
+        
+        // PDF 생성
+        // 수정된 코드:
+        let pdf;
+        // jsPDF 라이브러리 접근 방식 확인
+        if (window.jspdf && window.jspdf.jsPDF) {
+            // UMD 방식으로 로드된 경우
+            const { jsPDF } = window.jspdf;
+            pdf = new jsPDF('l', 'mm', 'a4');
+        } else if (window.jsPDF) {
+            // 전역 객체로 로드된 경우
+            pdf = new window.jsPDF('l', 'mm', 'a4');
+        } else {
+            throw new Error('jsPDF 라이브러리를 찾을 수 없습니다. 페이지를 새로고침한 후 다시 시도하세요.');
+        }
+        
+        // 페이지 설정
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const margin = {
+            top: 10,
+            bottom: 10,
+            left: 15,
+            right: 15
+        };
+        
+        // 제목 추가
+        const reportTitle = reportType === 'weekly' ? '주간 보고서' : '월간 보고서';
+        const dateRange = `${startDate.format('YYYY-MM-DD')} ~ ${endDate.format('YYYY-MM-DD')}`;
+        pdf.setFontSize(16);
+        pdf.text(`${productGroup.name} - ${process.name} - ${target.name} ${reportTitle}`, pageWidth / 2, margin.top + 10, { align: 'center' });
+        pdf.setFontSize(12);
+        pdf.text(`기간: ${dateRange}`, pageWidth / 2, margin.top + 20, { align: 'center' });
+        
+        // 측정 데이터가 있는 경우 차트 추가
+        if (measurements && measurements.length > 0) {
+            // 차트 컨테이너 생성
+            const chartContainer = document.createElement('div');
+            chartContainer.style.width = '600px';
+            chartContainer.style.height = '300px';
+            document.body.appendChild(chartContainer);
+            
+            // 차트 캔버스 생성
+            const canvas = document.createElement('canvas');
+            chartContainer.appendChild(canvas);
+            
+            // 차트 생성
+            const ctx = canvas.getContext('2d');
+            const chartData = {
+                labels: measurements.map(m => moment(m.created_at).format('MM-DD')),
+                datasets: [{
+                    label: '측정값',
+                    data: measurements.map(m => m.avg_value),
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderWidth: 2,
+                    fill: false
+                }]
+            };
+            
+            // SPEC 라인 추가
+            if (specData) {
+                if (specData.usl) {
+                    chartData.datasets.push({
+                        label: 'USL',
+                        data: Array(measurements.length).fill(specData.usl),
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        borderDash: [5, 5],
+                        borderWidth: 2,
+                        fill: false,
+                        pointRadius: 0
+                    });
+                }
+                
+                if (specData.lsl) {
+                    chartData.datasets.push({
+                        label: 'LSL',
+                        data: Array(measurements.length).fill(specData.lsl),
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        borderDash: [5, 5],
+                        borderWidth: 2,
+                        fill: false,
+                        pointRadius: 0
+                    });
+                }
+            }
+            
+            const chart = new Chart(ctx, {
+                type: 'line',
+                data: chartData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+            
+            // 차트 이미지 추가
+            await new Promise(resolve => setTimeout(resolve, 200)); // 차트 렌더링 시간 확보
+            const chartImage = canvas.toDataURL('image/png');
+            pdf.addImage(chartImage, 'PNG', margin.left, margin.top + 30, pageWidth - margin.left - margin.right, 100);
+            
+            // 차트 제거
+            chart.destroy();
+            document.body.removeChild(chartContainer);
+        }
+        
+        // 요약 정보 추가
+        pdf.setFontSize(14);
+        pdf.text('측정 데이터 요약', margin.left, margin.top + 140);
+        
+        // 통계 데이터 계산
+        let avgValue = 0;
+        let minValue = 0;
+        let maxValue = 0;
+        let stdDev = 0;
+        
+        if (measurements && measurements.length > 0) {
+            const values = measurements.map(m => m.avg_value);
+            avgValue = values.reduce((a, b) => a + b, 0) / values.length;
+            minValue = Math.min(...values);
+            maxValue = Math.max(...values);
+            
+            // 표준편차 계산
+            const mean = avgValue;
+            const squareDiffs = values.map(value => {
+                const diff = value - mean;
+                return diff * diff;
+            });
+            const avgSquareDiff = squareDiffs.reduce((a, b) => a + b, 0) / squareDiffs.length;
+            stdDev = Math.sqrt(avgSquareDiff);
+        }
+        
+        // 테이블 데이터
+        pdf.setFontSize(10);
+        pdf.text(`측정 데이터 수: ${measurements ? measurements.length : 0}`, margin.left, margin.top + 150);
+        pdf.text(`평균: ${avgValue.toFixed(3)}`, margin.left, margin.top + 160);
+        pdf.text(`최소값: ${minValue.toFixed(3)}`, margin.left, margin.top + 170);
+        pdf.text(`최대값: ${maxValue.toFixed(3)}`, margin.left, margin.top + 180);
+        pdf.text(`표준편차: ${stdDev.toFixed(3)}`, margin.left, margin.top + 190);
+        
+        if (specData) {
+            pdf.text(`USL: ${specData.usl}`, margin.left + 100, margin.top + 160);
+            pdf.text(`LSL: ${specData.lsl}`, margin.left + 100, margin.top + 170);
+        }
+        
+        // PDF를 Base64로 변환
+        const pdfBase64 = pdf.output('datauristring');
+        
+        // 이메일 제목 가져오기
+        const settings = reportSettingsManager.getSettings(reportType);
+        const emailSubject = reportSettingsManager.format_subject(
+            settings.subject, 
+            new Date(), 
+            reportType
+        );
+        
+        // 이메일 본문 생성
+        const emailBody = `
+            <html>
+            <body>
+                <h2>${productGroup.name} - ${process.name} - ${target.name} ${reportType === 'weekly' ? '주간' : '월간'} 보고서</h2>
+                <p>기간: ${dateRange}</p>
+                <p>첨부된 PDF 보고서를 확인해 주세요.</p>
+                <p>감사합니다.</p>
+            </body>
+            </html>
+        `;
+        
+        // 이메일 전송 API 호출
+        const formData = new FormData();
+        formData.append('recipients', JSON.stringify(recipients.map(r => r.email || r)));
+        formData.append('subject', emailSubject);
+        formData.append('body', emailBody);
+        formData.append('pdf_base64', pdfBase64);
+        
+        const response = await fetch(`${api.baseUrl}/email/send`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (!response.ok) {
+            throw new Error(`이메일 전송 실패: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
         
         // 이력에 추가
-        reportHistoryManager.addHistory(reportType, recipients.length, status);
+        reportHistoryManager.addHistory(reportType, recipients.length, 'success');
         
         // 이력 목록 새로고침
         loadReportHistory();
         
-        showNotification('테스트 보고서가 전송되었습니다.', 'success');
-    }, 3000);
+        showNotification('보고서가 성공적으로 전송되었습니다.', 'success');
+        
+    } catch (error) {
+        console.error('보고서 전송 오류:', error);
+        
+        // 이력에 실패 상태로 추가
+        reportHistoryManager.addHistory(reportType, recipients.length, 'failure');
+        
+        // 이력 목록 새로고침
+        loadReportHistory();
+        
+        showNotification(`보고서 전송 중 오류가 발생했습니다: ${error.message}`, 'error');
+    }
 }
 
 // 이력 새로고침
