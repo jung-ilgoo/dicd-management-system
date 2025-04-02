@@ -808,7 +808,19 @@ function setupEventListeners() {
     document.getElementById('save-targets-btn').addEventListener('click', () => {
         handleSaveTargetsFromModal();
     });
+
+    // 이메일 전송 버튼 클릭
+    document.getElementById('email-pdf-btn').addEventListener('click', () => {
+        prepareEmailModal();
+    });
+    
+    // 이메일 전송 확인 버튼 클릭
+    document.getElementById('send-email-btn').addEventListener('click', () => {
+        sendPdfByEmail();
+    });
 }
+
+
 
 // 모달에서 선택한 타겟 저장을 처리하는 새 함수
 function handleSaveTargetsFromModal() {
@@ -1353,7 +1365,310 @@ $(document).on('change', '#targets-checklist-body input[type="checkbox"]', funct
     }
  }
  
+
  // 페이지 로드 시 초기화
- $(document).ready(function() {
+$(document).ready(function() {
     initialize();
- });
+});
+
+// 여기서부터 새로운 이메일 함수 추가 (기존 코드 아래에 추가)
+
+// 이메일 모달 준비 함수
+async function prepareEmailModal() {
+    try {
+        // 선택된 타겟 확인
+        const targets = targetManager.getAllTargets();
+        if (targets.length === 0) {
+            alert('전송할 타겟이 선택되지 않았습니다. 먼저 타겟을 추가해주세요.');
+            return;
+        }
+        
+        // 날짜 범위 확인
+        const dateRange = document.getElementById('date-range').value;
+        if (!dateRange) {
+            alert('날짜 범위가 설정되지 않았습니다.');
+            return;
+        }
+        
+        // 이메일 제목에 날짜 추가
+        document.getElementById('email-subject').value = `DICD 측정 관리 시스템 보고서 (${dateRange})`;
+        
+        // 수신자 목록 로드
+        await loadEmailRecipients();
+        
+        // 모달 표시
+        $('#email-pdf-modal').modal('show');
+        
+    } catch (error) {
+        console.error('이메일 모달 준비 오류:', error);
+        alert('이메일 전송 준비 중 오류가 발생했습니다.');
+    }
+}
+
+// 수신자 목록 로드 함수
+async function loadEmailRecipients() {
+    try {
+        // 저장된 수신자 목록 로드
+        // 이 부분은 실제 백엔드 API가 있다면 그것을 사용하게 됩니다
+        // 이 예제에서는 로컬 스토리지에서 가져옵니다
+        const savedRecipients = localStorage.getItem('report_recipients');
+        let recipients = [];
+        
+        if (savedRecipients) {
+            try {
+                recipients = JSON.parse(savedRecipients);
+            } catch (e) {
+                console.error('로컬 스토리지에서 수신자 목록 불러오기 오류:', e);
+            }
+        }
+        
+        // Select2 초기화 (있다면)
+        const $select = $('#email-recipients');
+        
+        // 기존 옵션 제거
+        $select.empty();
+        
+        // 활성화된 수신자만 추가
+        recipients
+            .filter(r => r.active !== false)  // active가 없거나 true인 경우 모두 포함
+            .forEach(recipient => {
+                $select.append(new Option(recipient.email, recipient.email, false, false));
+            });
+        
+        // Select2 초기화
+        if ($.fn.select2) {
+            $select.select2({
+                theme: 'bootstrap4',
+                tags: true,
+                tokenSeparators: [',', ' '],
+                placeholder: '수신자 선택 또는 입력...'
+            });
+        }
+        
+    } catch (error) {
+        console.error('수신자 목록 로드 오류:', error);
+        alert('수신자 목록을 불러오는데 실패했습니다.');
+    }
+}
+
+// PDF를 이메일로 전송하는 함수
+async function sendPdfByEmail() {
+    try {
+        // 로딩 표시
+        document.getElementById('loading-indicator').style.display = 'block';
+        document.getElementById('send-email-btn').disabled = true;
+        
+        // 선택된 수신자 가져오기
+        const selectedRecipients = $('#email-recipients').val() || [];
+        
+        // 추가 수신자 가져오기
+        const additionalRecipients = document.getElementById('additional-recipients').value;
+        let recipientsList = [...selectedRecipients];
+        
+        if (additionalRecipients) {
+            // 쉼표로 구분된 이메일 주소를 분리하여 추가
+            const additionalEmails = additionalRecipients.split(',')
+                .map(email => email.trim())
+                .filter(email => email && email.includes('@'));
+                
+            recipientsList = [...recipientsList, ...additionalEmails];
+        }
+        
+        // 중복 제거
+        recipientsList = [...new Set(recipientsList)];
+        
+        if (recipientsList.length === 0) {
+            alert('수신자를 한 명 이상 선택하거나 입력해주세요.');
+            document.getElementById('loading-indicator').style.display = 'none';
+            document.getElementById('send-email-btn').disabled = false;
+            return;
+        }
+        
+        // 이메일 제목 가져오기
+        const emailSubject = document.getElementById('email-subject').value;
+        
+        // PDF 생성 (기존 exportToPDF 함수의 로직을 재사용)
+        // 하지만 대신 PDF를 다운로드하는 대신 Base64 문자열로 반환
+        const pdfBase64 = await generatePdfAsBase64();
+        
+        // 이메일 본문 생성
+        const dateRange = document.getElementById('date-range').value;
+        const emailBody = `
+            <html>
+            <body>
+                <h2>DICD 측정 관리 시스템 보고서</h2>
+                <p>기간: ${dateRange}</p>
+                <p>첨부된 PDF 보고서를 확인해 주세요.</p>
+                <p>감사합니다.</p>
+            </body>
+            </html>
+        `;
+        
+        // 이메일 전송 API 호출 부분
+        console.log('Recipients:', recipientsList);
+
+        const formData = new FormData();
+        formData.append('recipients', JSON.stringify(recipientsList));
+        formData.append('subject', emailSubject);
+        formData.append('body', emailBody);
+
+        // base64 문자열의 'data:application/pdf;base64,' 부분 제거
+        let cleanPdfBase64 = pdfBase64;
+        if (pdfBase64.startsWith('data:application/pdf;base64,')) {
+            cleanPdfBase64 = pdfBase64.replace('data:application/pdf;base64,', '');
+        }
+        formData.append('pdf_base64', cleanPdfBase64);
+
+        // API 요청
+        const response = await fetch(`${api.baseUrl}/email/send`, {
+            method: 'POST',
+            body: formData
+        });
+
+        // 응답 처리
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('API 응답 오류:', errorText);
+            throw new Error(`이메일 전송 실패: ${response.statusText}`);
+        }
+        
+        
+        const result = await response.json();
+        
+        // 모달 닫기
+        $('#email-pdf-modal').modal('hide');
+        
+        // 완료 메시지
+        alert('보고서가 이메일로 성공적으로 전송되었습니다.');
+        
+    } catch (error) {
+        console.error('이메일 전송 오류:', error);
+        alert(`이메일 전송 중 오류가 발생했습니다: ${error.message}`);
+    } finally {
+        // 로딩 표시 제거
+        document.getElementById('loading-indicator').style.display = 'none';
+        document.getElementById('send-email-btn').disabled = false;
+    }
+}
+
+// PDF를 Base64 문자열로 생성하는 함수
+async function generatePdfAsBase64() {
+    try {
+        // 기존 exportToPDF 메서드와 유사한 로직으로 PDF 생성
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('l', 'mm', 'a4');
+        
+        // 페이지 설정
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const margin = {
+            top: 8,
+            bottom: 5,
+            left: 12,
+            right: 12
+        };
+        
+        // 날짜 범위 가져오기
+        const dateRange = document.getElementById('date-range').value;
+        
+        // 제목 추가
+        pdf.setFontSize(16);
+        pdf.text(`DICD Monitoring (${dateRange})`, pageWidth / 2, margin.top + 5, { align: 'center' });
+        
+        // 차트 배치를 위한 설정
+        const titleSpace = 12;
+        const chartWidth = (pageWidth - margin.left - margin.right - 8) / 2;
+        const chartHeight = (pageHeight - margin.top - margin.bottom - titleSpace - 10) / 3;
+        
+        const chartIds = Object.keys(chartManager.charts);
+        
+        // 차트 개수에 따라 필요한 페이지 수 계산
+        const chartsPerPage = 6;
+        const totalPages = Math.ceil(chartIds.length / chartsPerPage);
+        
+        for (let page = 0; page < totalPages; page++) {
+            // 첫 페이지가 아니면 새 페이지 추가
+            if (page > 0) {
+                pdf.addPage();
+                // 새 페이지에도 제목 추가
+                pdf.setFontSize(16);
+                pdf.text(`DICD Monitoring (${dateRange})`, pageWidth / 2, margin.top + 5, { align: 'center' });
+            }
+            
+            // 현재 페이지의 차트 개수
+            const chartsOnPage = Math.min(chartsPerPage, chartIds.length - page * chartsPerPage);
+            
+            // 페이지 내 차트 위치 계산 및 추가
+            for (let i = 0; i < chartsOnPage; i++) {
+                const chartId = chartIds[page * chartsPerPage + i];
+                const chartInfo = chartManager.charts[chartId];
+                
+                // 행과 열 계산 (3x2 그리드)
+                const row = Math.floor(i / 2);
+                const col = i % 2;
+                
+                // 현재 차트의 x, y 좌표 계산
+                const x = margin.left + col * (chartWidth + 8);
+                const y = margin.top + titleSpace + row * (chartHeight + 5);
+                
+                // 차트 제목 가져오기
+                const targetInfo = targetManager.getTargetById(chartInfo.targetId);
+                
+                // Cp 값 가져오기 (있는 경우)
+                let cpValue = '';
+                const chartCard = document.getElementById(`chart-card-${chartInfo.targetId}`);
+                if (chartCard) {
+                    const cpBadge = chartCard.querySelector('.cp-badge');
+                    if (cpBadge) {
+                        cpValue = cpBadge.textContent;
+                    }
+                }
+                
+                // 차트 제목 생성
+                const chartTitle = `${targetInfo.productGroupName}_${targetInfo.processName}_${targetInfo.targetName} (${cpValue})`;
+                
+                // 차트 제목 추가
+                pdf.setFontSize(8);
+                pdf.text(chartTitle, x + chartWidth/2, y - 2, { align: 'center' });
+                
+                // 차트 캔버스를 이미지로 변환
+                const canvas = document.getElementById(chartId);
+                
+                // 차트 비율 조정
+                const originalAspectRatio = canvas.width / canvas.height;
+                const adjustedAspectRatio = originalAspectRatio * 0.85;
+                
+                // 조정된 비율로 이미지 크기 계산
+                let imgWidth = chartWidth;
+                let imgHeight = imgWidth / adjustedAspectRatio;
+                
+                // 높이가 할당된 공간을 초과하면 조정
+                if (imgHeight > chartHeight) {
+                    imgHeight = chartHeight;
+                    imgWidth = imgHeight * adjustedAspectRatio;
+                }
+                
+                // 중앙 정렬을 위한 오프셋 계산
+                const xOffset = (chartWidth - imgWidth) / 2;
+                
+                // 캔버스를 이미지로 변환
+                const chartImage = canvas.toDataURL('image/png', 1.0);
+                
+                // 차트 주변에 얇은 경계선 그리기
+                pdf.setDrawColor(230, 230, 230);
+                pdf.setLineWidth(0.1);
+                pdf.rect(x, y, chartWidth, chartHeight);
+                
+                // 차트 이미지 추가
+                pdf.addImage(chartImage, 'PNG', x + xOffset, y, imgWidth, imgHeight);
+            }
+        }
+        
+        // PDF를 Base64 문자열로 반환
+        return pdf.output('datauristring');
+        
+    } catch (error) {
+        console.error('PDF 생성 오류:', error);
+        throw new Error('PDF 생성 중 오류가 발생했습니다.');
+    }
+}

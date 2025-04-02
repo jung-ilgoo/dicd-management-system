@@ -39,7 +39,7 @@ async def send_email(
     subject: str = Form(...),
     body: str = Form(...),
     pdf_file: Optional[UploadFile] = File(None),
-    pdf_base64: Optional[str] = Form(None)
+    pdf_base64: Optional[str] = Form(None, max_length=20971520)
 ):
     """
     이메일 전송 API
@@ -78,11 +78,17 @@ async def send_email(
         if pdf_file:
             pdf_content = await pdf_file.read()
             pdf_filename = pdf_file.filename
+        # backend/routers/email.py 파일의 send_email 함수 내 PDF base64 처리 부분
         elif pdf_base64:
             try:
-                pdf_content = base64.b64decode(pdf_base64.split(',')[1] if ',' in pdf_base64 else pdf_base64)
-                pdf_filename = f"report_{subject.replace(' ', '_')}.pdf"
+                # 'data:application/pdf;base64,' 접두사 처리
+                if ',' in pdf_base64:
+                    pdf_content = base64.b64decode(pdf_base64.split(',')[1])
+                else:
+                    pdf_content = base64.b64decode(pdf_base64)
+                pdf_filename = f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
             except Exception as e:
+                print(f"Base64 디코딩 오류: {str(e)}")
                 raise HTTPException(status_code=400, detail=f"Base64 디코딩 오류: {str(e)}")
         
         # 이메일 전송
