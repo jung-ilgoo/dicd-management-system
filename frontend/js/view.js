@@ -384,7 +384,8 @@
         });
     }
     
-    // 측정 데이터 상세 정보 표시 함수 수정
+    // frontend/js/view.js 파일의 showMeasurementDetail 함수만 수정
+
     async function showMeasurementDetail(measurementId) {
         try {
             // 로딩 표시
@@ -399,56 +400,96 @@
             // 모달 표시
             $('#detail-modal').modal('show');
             
-            // 측정 데이터 가져오기
-            const measurement = await api.get(`${API_CONFIG.ENDPOINTS.MEASUREMENTS}/${measurementId}`);
+            // 먼저 캐시된 데이터에서 측정 데이터 찾기
+            const cachedMeasurement = measurementsCache.find(m => m.id == measurementId);
             
-            // 타겟 정보 가져오기
-            const target = await api.get(`${API_CONFIG.ENDPOINTS.TARGETS}/${measurement.target_id}`);
+            if (!cachedMeasurement) {
+                throw new Error('캐시된 측정 데이터를 찾을 수 없습니다.');
+            }
             
-            // 공정 정보 가져오기
-            const process = await api.get(`${API_CONFIG.ENDPOINTS.PROCESSES}/${target.process_id}`);
+            // 이미 캐시에 있는 데이터 사용
+            let target, process, productGroup;
             
-            // 제품군 정보 가져오기
-            const productGroup = await api.get(`${API_CONFIG.ENDPOINTS.PRODUCT_GROUPS}/${process.product_group_id}`);
+            // 타겟 정보
+            if (targetsCache[cachedMeasurement.target_id]) {
+                target = targetsCache[cachedMeasurement.target_id];
+            } else {
+                // 캐시에 없으면 새로 가져오기
+                target = await api.get(`${API_CONFIG.ENDPOINTS.TARGETS}/${cachedMeasurement.target_id}`);
+                targetsCache[cachedMeasurement.target_id] = target;
+            }
             
-            // 장비 정보 가져오기 - 세 가지 장비 정보 모두 조회
+            // 공정 정보
+            if (processesCache[target.process_id]) {
+                process = processesCache[target.process_id];
+            } else {
+                // 캐시에 없으면 새로 가져오기
+                process = await api.get(`${API_CONFIG.ENDPOINTS.PROCESSES}/${target.process_id}`);
+                processesCache[target.process_id] = process;
+            }
+            
+            // 제품군 정보
+            if (productGroupsCache[process.product_group_id]) {
+                productGroup = productGroupsCache[process.product_group_id];
+            } else {
+                // 캐시에 없으면 새로 가져오기
+                productGroup = await api.get(`${API_CONFIG.ENDPOINTS.PRODUCT_GROUPS}/${process.product_group_id}`);
+                productGroupsCache[process.product_group_id] = productGroup;
+            }
+            
+            // 장비 정보 준비
             let equipmentInfo = '';
             
             // 코팅 장비 정보
-            if (measurement.coating_equipment_id) {
-                try {
-                    const equipment = await api.get(`${API_CONFIG.ENDPOINTS.EQUIPMENTS}/${measurement.coating_equipment_id}`);
-                    equipmentInfo += `<tr><th>코팅 장비</th><td>${equipment.name}</td></tr>`;
-                } catch (error) {
-                    console.warn(`장비 ID ${measurement.coating_equipment_id}에 대한 정보를 가져올 수 없습니다.`);
-                    equipmentInfo += `<tr><th>코팅 장비</th><td>-</td></tr>`;
+            if (cachedMeasurement.coating_equipment_id) {
+                let equipment;
+                if (equipmentsCache[cachedMeasurement.coating_equipment_id]) {
+                    equipment = equipmentsCache[cachedMeasurement.coating_equipment_id];
+                } else {
+                    try {
+                        equipment = await api.get(`${API_CONFIG.ENDPOINTS.EQUIPMENTS}/${cachedMeasurement.coating_equipment_id}`);
+                        equipmentsCache[cachedMeasurement.coating_equipment_id] = equipment;
+                    } catch (error) {
+                        console.warn(`장비 ID ${cachedMeasurement.coating_equipment_id} 정보를 가져올 수 없습니다.`);
+                    }
                 }
+                equipmentInfo += `<tr><th>코팅 장비</th><td>${equipment ? equipment.name : '-'}</td></tr>`;
             } else {
                 equipmentInfo += `<tr><th>코팅 장비</th><td>-</td></tr>`;
             }
             
             // 노광 장비 정보
-            if (measurement.exposure_equipment_id) {
-                try {
-                    const equipment = await api.get(`${API_CONFIG.ENDPOINTS.EQUIPMENTS}/${measurement.exposure_equipment_id}`);
-                    equipmentInfo += `<tr><th>노광 장비</th><td>${equipment.name}</td></tr>`;
-                } catch (error) {
-                    console.warn(`장비 ID ${measurement.exposure_equipment_id}에 대한 정보를 가져올 수 없습니다.`);
-                    equipmentInfo += `<tr><th>노광 장비</th><td>-</td></tr>`;
+            if (cachedMeasurement.exposure_equipment_id) {
+                let equipment;
+                if (equipmentsCache[cachedMeasurement.exposure_equipment_id]) {
+                    equipment = equipmentsCache[cachedMeasurement.exposure_equipment_id];
+                } else {
+                    try {
+                        equipment = await api.get(`${API_CONFIG.ENDPOINTS.EQUIPMENTS}/${cachedMeasurement.exposure_equipment_id}`);
+                        equipmentsCache[cachedMeasurement.exposure_equipment_id] = equipment;
+                    } catch (error) {
+                        console.warn(`장비 ID ${cachedMeasurement.exposure_equipment_id} 정보를 가져올 수 없습니다.`);
+                    }
                 }
+                equipmentInfo += `<tr><th>노광 장비</th><td>${equipment ? equipment.name : '-'}</td></tr>`;
             } else {
                 equipmentInfo += `<tr><th>노광 장비</th><td>-</td></tr>`;
             }
             
             // 현상 장비 정보
-            if (measurement.development_equipment_id) {
-                try {
-                    const equipment = await api.get(`${API_CONFIG.ENDPOINTS.EQUIPMENTS}/${measurement.development_equipment_id}`);
-                    equipmentInfo += `<tr><th>현상 장비</th><td>${equipment.name}</td></tr>`;
-                } catch (error) {
-                    console.warn(`장비 ID ${measurement.development_equipment_id}에 대한 정보를 가져올 수 없습니다.`);
-                    equipmentInfo += `<tr><th>현상 장비</th><td>-</td></tr>`;
+            if (cachedMeasurement.development_equipment_id) {
+                let equipment;
+                if (equipmentsCache[cachedMeasurement.development_equipment_id]) {
+                    equipment = equipmentsCache[cachedMeasurement.development_equipment_id];
+                } else {
+                    try {
+                        equipment = await api.get(`${API_CONFIG.ENDPOINTS.EQUIPMENTS}/${cachedMeasurement.development_equipment_id}`);
+                        equipmentsCache[cachedMeasurement.development_equipment_id] = equipment;
+                    } catch (error) {
+                        console.warn(`장비 ID ${cachedMeasurement.development_equipment_id} 정보를 가져올 수 없습니다.`);
+                    }
                 }
+                equipmentInfo += `<tr><th>현상 장비</th><td>${equipment ? equipment.name : '-'}</td></tr>`;
             } else {
                 equipmentInfo += `<tr><th>현상 장비</th><td>-</td></tr>`;
             }
@@ -456,12 +497,23 @@
             // SPEC 정보 가져오기
             let specInfo = '<span class="badge badge-secondary">SPEC 정보 없음</span>';
             try {
-                const spec = await api.getActiveSpec(measurement.target_id);
+                // 캐시된 활성 SPEC 확인
+                if (!window.activeSpecCache) window.activeSpecCache = {};
+                
+                if (!window.activeSpecCache[cachedMeasurement.target_id]) {
+                    try {
+                        window.activeSpecCache[cachedMeasurement.target_id] = await api.getActiveSpec(cachedMeasurement.target_id);
+                    } catch (error) {
+                        console.warn(`타겟 ID ${cachedMeasurement.target_id}에 대한 활성 SPEC이 없습니다.`);
+                    }
+                }
+                
+                const spec = window.activeSpecCache[cachedMeasurement.target_id];
                 if (spec) {
                     specInfo = `LSL: ${spec.lsl.toFixed(3)}, USL: ${spec.usl.toFixed(3)}`;
                 }
             } catch (error) {
-                console.warn(`타겟 ID ${measurement.target_id}에 대한 활성 SPEC이 없습니다.`);
+                console.warn(`타겟 ID ${cachedMeasurement.target_id}에 대한 활성 SPEC을 가져오는 중 오류:`, error);
             }
             
             // 상세 정보 HTML 생성
@@ -472,7 +524,7 @@
                     <table class="table table-bordered">
                         <tr>
                             <th>날짜</th>
-                            <td>${UTILS.formatDate(measurement.created_at)}</td>
+                            <td>${UTILS.formatDate(cachedMeasurement.created_at)}</td>
                         </tr>
                         <tr>
                             <th>제품군</th>
@@ -489,23 +541,23 @@
                         ${equipmentInfo}
                         <tr>
                             <th>DEVICE</th>
-                            <td>${measurement.device}</td>
+                            <td>${cachedMeasurement.device}</td>
                         </tr>
                         <tr>
                             <th>LOT NO</th>
-                            <td>${measurement.lot_no}</td>
+                            <td>${cachedMeasurement.lot_no}</td>
                         </tr>
                         <tr>
                             <th>WAFER NO</th>
-                            <td>${measurement.wafer_no}</td>
+                            <td>${cachedMeasurement.wafer_no}</td>
                         </tr>
                         <tr>
                             <th>Exposure Time</th>
-                            <td>${measurement.exposure_time || '-'}</td>
+                            <td>${cachedMeasurement.exposure_time || '-'}</td>
                         </tr>
                         <tr>
                             <th>작성자</th>
-                            <td>${measurement.author}</td>
+                            <td>${cachedMeasurement.author}</td>
                         </tr>
                         <tr>
                             <th>SPEC</th>
@@ -518,43 +570,43 @@
                     <table class="table table-bordered">
                         <tr>
                             <th>좌</th>
-                            <td>${UTILS.formatNumber(measurement.value_left)}</td>
+                            <td>${UTILS.formatNumber(cachedMeasurement.value_left)}</td>
                         </tr>
                         <tr>
                             <th>상</th>
-                            <td>${UTILS.formatNumber(measurement.value_top)}</td>
+                            <td>${UTILS.formatNumber(cachedMeasurement.value_top)}</td>
                         </tr>
                         <tr>
                             <th>중</th>
-                            <td>${UTILS.formatNumber(measurement.value_center)}</td>
+                            <td>${UTILS.formatNumber(cachedMeasurement.value_center)}</td>
                         </tr>
                         <tr>
                             <th>하</th>
-                            <td>${UTILS.formatNumber(measurement.value_bottom)}</td>
+                            <td>${UTILS.formatNumber(cachedMeasurement.value_bottom)}</td>
                         </tr>
                         <tr>
                             <th>우</th>
-                            <td>${UTILS.formatNumber(measurement.value_right)}</td>
+                            <td>${UTILS.formatNumber(cachedMeasurement.value_right)}</td>
                         </tr>
                         <tr>
                             <th>평균값</th>
-                            <td>${UTILS.formatNumber(measurement.avg_value)}</td>
+                            <td>${UTILS.formatNumber(cachedMeasurement.avg_value)}</td>
                         </tr>
                         <tr>
                             <th>최소값</th>
-                            <td>${UTILS.formatNumber(measurement.min_value)}</td>
+                            <td>${UTILS.formatNumber(cachedMeasurement.min_value)}</td>
                         </tr>
                         <tr>
                             <th>최대값</th>
-                            <td>${UTILS.formatNumber(measurement.max_value)}</td>
+                            <td>${UTILS.formatNumber(cachedMeasurement.max_value)}</td>
                         </tr>
                         <tr>
                             <th>범위</th>
-                            <td>${UTILS.formatNumber(measurement.range_value)}</td>
+                            <td>${UTILS.formatNumber(cachedMeasurement.range_value)}</td>
                         </tr>
                         <tr>
                             <th>표준편차</th>
-                            <td>${UTILS.formatNumber(measurement.std_dev)}</td>
+                            <td>${UTILS.formatNumber(cachedMeasurement.std_dev)}</td>
                         </tr>
                     </table>
                 </div>
@@ -568,7 +620,7 @@
             console.error('측정 데이터 상세 정보 로드 실패:', error);
             document.getElementById('detail-content').innerHTML = `
             <div class="alert alert-danger">
-                <i class="fas fa-exclamation-circle mr-1"></i> 데이터를 불러오는 중 오류가 발생했습니다.
+                <i class="fas fa-exclamation-circle mr-1"></i> 데이터를 불러오는 중 오류가 발생했습니다: ${error.message}
             </div>
             `;
         }
