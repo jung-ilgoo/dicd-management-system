@@ -712,7 +712,25 @@
             e.preventDefault();
             exportData('excel');
         });
+
+        // 상세 정보에서 수정 버튼 클릭 이벤트
+        document.getElementById('edit-detail-btn').addEventListener('click', function() {
+            // 상세 모달 닫기
+            $('#detail-modal').modal('hide');
+            
+            // 측정 ID 가져오기
+            const measurementId = document.querySelector('.view-detail[data-id]').dataset.id;
+            
+            // 수정 폼 초기화
+            populateEditForm(measurementId);
+        });
+
+        // 수정 저장 버튼 클릭 이벤트
+        document.getElementById('save-edit-btn').addEventListener('click', function() {
+            saveEditedMeasurement();
+        });
     }
+    
     
     // 데이터 내보내기
     function exportData(format) {
@@ -727,4 +745,160 @@
     
     // 페이지 로드 시 초기화
     document.addEventListener('DOMContentLoaded', initViewPage);
+
+// 수정 폼 채우기
+async function populateEditForm(measurementId) {
+    try {
+        // 먼저 캐시된 데이터에서 측정 데이터 찾기
+        const cachedMeasurement = measurementsCache.find(m => m.id == measurementId);
+        
+        if (!cachedMeasurement) {
+            throw new Error('캐시된 측정 데이터를 찾을 수 없습니다.');
+        }
+        
+        // 측정 ID 설정
+        document.getElementById('edit-measurement-id').value = measurementId;
+        document.getElementById('edit-target-id').value = cachedMeasurement.target_id;
+        
+        // 폼 필드 채우기
+        document.getElementById('edit-device').value = cachedMeasurement.device;
+        document.getElementById('edit-lot-no').value = cachedMeasurement.lot_no;
+        document.getElementById('edit-wafer-no').value = cachedMeasurement.wafer_no;
+        document.getElementById('edit-exposure-time').value = cachedMeasurement.exposure_time || '';
+        document.getElementById('edit-value-top').value = cachedMeasurement.value_top;
+        document.getElementById('edit-value-center').value = cachedMeasurement.value_center;
+        document.getElementById('edit-value-bottom').value = cachedMeasurement.value_bottom;
+        document.getElementById('edit-value-left').value = cachedMeasurement.value_left;
+        document.getElementById('edit-value-right').value = cachedMeasurement.value_right;
+        document.getElementById('edit-author').value = cachedMeasurement.author;
+        
+        // 장비 옵션 로드
+        await loadEquipmentOptions();
+        
+        // 장비 선택
+        if (cachedMeasurement.coating_equipment_id) {
+            document.getElementById('edit-coating-equipment').value = cachedMeasurement.coating_equipment_id;
+        }
+        
+        if (cachedMeasurement.exposure_equipment_id) {
+            document.getElementById('edit-exposure-equipment').value = cachedMeasurement.exposure_equipment_id;
+        }
+        
+        if (cachedMeasurement.development_equipment_id) {
+            document.getElementById('edit-development-equipment').value = cachedMeasurement.development_equipment_id;
+        }
+        
+        // 수정 모달 표시
+        $('#edit-modal').modal('show');
+        
+    } catch (error) {
+        console.error('수정 폼 초기화 실패:', error);
+        alert('데이터를 불러오는 중 오류가 발생했습니다: ' + error.message);
+    }
+}
+
+// 장비 옵션 로드
+async function loadEquipmentOptions() {
+    try {
+        const equipments = await api.getEquipments();
+        
+        if (equipments && equipments.length > 0) {
+            // 코팅 장비 (type: 코팅)
+            let coatingOptions = '<option value="">선택 안함</option>';
+            // 노광 장비 (type: 노광)
+            let exposureOptions = '<option value="">선택 안함</option>';
+            // 현상 장비 (type: 현상)
+            let developmentOptions = '<option value="">선택 안함</option>';
+            
+            equipments.forEach(equipment => {
+                const option = `<option value="${equipment.id}">${equipment.name}</option>`;
+                
+                if (equipment.type === '코팅') {
+                    coatingOptions += option;
+                } else if (equipment.type === '노광') {
+                    exposureOptions += option;
+                } else if (equipment.type === '현상') {
+                    developmentOptions += option;
+                }
+            });
+            
+            document.getElementById('edit-coating-equipment').innerHTML = coatingOptions;
+            document.getElementById('edit-exposure-equipment').innerHTML = exposureOptions;
+            document.getElementById('edit-development-equipment').innerHTML = developmentOptions;
+        }
+    } catch (error) {
+        console.error('장비 옵션 로드 실패:', error);
+        throw new Error('장비 목록을 불러오는데 실패했습니다.');
+    }
+}
+
+// 수정된 데이터 저장
+async function saveEditedMeasurement() {
+    try {
+        // 폼 유효성 검사
+        const form = document.getElementById('edit-form');
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+        
+        // 측정 ID 및 타겟 ID
+        const measurementId = document.getElementById('edit-measurement-id').value;
+        const targetId = document.getElementById('edit-target-id').value;
+        
+        // 폼 데이터 수집
+        const measurementData = {
+            target_id: parseInt(targetId),
+            device: document.getElementById('edit-device').value,
+            lot_no: document.getElementById('edit-lot-no').value,
+            wafer_no: document.getElementById('edit-wafer-no').value,
+            exposure_time: document.getElementById('edit-exposure-time').value ? parseInt(document.getElementById('edit-exposure-time').value) : null,
+            value_top: parseFloat(document.getElementById('edit-value-top').value),
+            value_center: parseFloat(document.getElementById('edit-value-center').value),
+            value_bottom: parseFloat(document.getElementById('edit-value-bottom').value),
+            value_left: parseFloat(document.getElementById('edit-value-left').value),
+            value_right: parseFloat(document.getElementById('edit-value-right').value),
+            author: document.getElementById('edit-author').value
+        };
+        
+        // 장비 ID 설정
+        const coatingEquipmentId = document.getElementById('edit-coating-equipment').value;
+        const exposureEquipmentId = document.getElementById('edit-exposure-equipment').value;
+        const developmentEquipmentId = document.getElementById('edit-development-equipment').value;
+        
+        if (coatingEquipmentId) {
+            measurementData.coating_equipment_id = parseInt(coatingEquipmentId);
+        }
+        
+        if (exposureEquipmentId) {
+            measurementData.exposure_equipment_id = parseInt(exposureEquipmentId);
+        }
+        
+        if (developmentEquipmentId) {
+            measurementData.development_equipment_id = parseInt(developmentEquipmentId);
+        }
+        
+        // API 호출하여 데이터 업데이트
+        const updatedMeasurement = await api.put(`${API_CONFIG.ENDPOINTS.MEASUREMENTS}/${measurementId}`, measurementData);
+        
+        // 모달 닫기
+        $('#edit-modal').modal('hide');
+        
+        // 캐시 업데이트
+        const index = measurementsCache.findIndex(m => m.id == measurementId);
+        if (index !== -1) {
+            measurementsCache[index] = updatedMeasurement;
+        }
+        
+        // 테이블 업데이트
+        updateDataTable(measurementsCache);
+        
+        // 성공 메시지
+        alert('측정 데이터가 성공적으로 업데이트되었습니다.');
+        
+    } catch (error) {
+        console.error('측정 데이터 업데이트 실패:', error);
+        alert('데이터 업데이트 중 오류가 발생했습니다: ' + error.message);
+    }
+}
 })();
