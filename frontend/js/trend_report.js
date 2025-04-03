@@ -117,24 +117,34 @@ class ChartManager {
         const cardBody = document.createElement('div');
         cardBody.className = 'card-body p-0';
         
-        // Cp 뱃지 생성
+        // Cp 배지 생성 (완전히 대체)
         const cpBadge = document.createElement('div');
         cpBadge.className = 'cp-badge badge badge-light';
-        
-        // Cpk 값에 따른 배지 색상 설정
-        let cpColor = 'bg-secondary';
-        const cpValue = specData && specData.process_capability ? specData.process_capability.cp : null;
-        
-        if (cpValue !== null) {
-            if (cpValue < 0.67) cpColor = 'bg-danger';
-            else if (cpValue < 1.00) cpColor = 'bg-warning';
-            else if (cpValue < 1.33) cpColor = 'bg-info';
-            else cpColor = 'bg-success';
-            
-            cpBadge.textContent = `Cp: ${cpValue.toFixed(2)}`;
-            cpBadge.classList.add(cpColor);
-        } else {
+
+        // 데이터 포인트 확인 - 실제 측정 데이터가 있는지 확인
+        const hasValidData = data && data.length >= 2;
+
+        if (!hasValidData) {
+            // 데이터가 없거나 불충분한 경우
             cpBadge.textContent = 'Cp: N/A';
+            cpBadge.classList.add('bg-secondary');
+        } else {
+            // 데이터가 충분하고 SPEC 정보가 있는 경우에만 Cp 값 표시
+            if (specData && specData.process_capability && specData.process_capability.cp !== null && specData.process_capability.cp !== undefined) {
+                const cpValue = specData.process_capability.cp;
+                let cpColor = 'bg-secondary';
+                
+                if (cpValue < 0.67) cpColor = 'bg-danger';
+                else if (cpValue < 1.00) cpColor = 'bg-warning';
+                else if (cpValue < 1.33) cpColor = 'bg-info';
+                else cpColor = 'bg-success';
+                
+                cpBadge.textContent = `Cp: ${cpValue.toFixed(2)}`;
+                cpBadge.classList.add(cpColor);
+            } else {
+                cpBadge.textContent = 'Cp: N/A';
+                cpBadge.classList.add('bg-secondary');
+            }
         }
         
         // 차트 캔버스 생성
@@ -302,6 +312,10 @@ class ChartManager {
                 tooltip: {
                     mode: 'index',
                     intersect: false,
+                    filter: function(tooltipItem) {
+                        // 측정값 데이터셋(인덱스 0)만 표시하고 USL, LSL, TARGET(인덱스 1 이상) 데이터셋은 제외
+                        return tooltipItem.datasetIndex === 0;
+                    },
                     callbacks: {
                         title: function(tooltipItems) {
                             if (tooltipItems.length > 0 && tooltipItems[0].raw.created_at) {
@@ -394,21 +408,30 @@ class ChartManager {
                     // 기존 배경색 클래스 제거
                     cpBadge.classList.remove('bg-danger', 'bg-warning', 'bg-info', 'bg-success', 'bg-secondary');
                     
-                    // Cpk 값에 따른 배지 색상 설정
-                    const cpValue = specData && specData.process_capability ? specData.process_capability.cp : null;
-                    let cpColor = 'bg-secondary';
+                    // 데이터 포인트 확인 - 실제 측정 데이터가 있는지 확인
+                    const hasValidData = data && data.length >= 2;
                     
-                    if (cpValue !== null) {
-                        if (cpValue < 0.67) cpColor = 'bg-danger';
-                        else if (cpValue < 1.00) cpColor = 'bg-warning';
-                        else if (cpValue < 1.33) cpColor = 'bg-info';
-                        else cpColor = 'bg-success';
-                        
-                        cpBadge.textContent = `Cp: ${cpValue.toFixed(2)}`;
-                        cpBadge.classList.add(cpColor);
-                    } else {
+                    if (!hasValidData) {
+                        // 데이터가 없거나 불충분한 경우
                         cpBadge.textContent = 'Cp: N/A';
                         cpBadge.classList.add('bg-secondary');
+                    } else {
+                        // 데이터가 충분하고 SPEC 정보가 있는 경우에만 Cp 값 표시
+                        if (specData && specData.process_capability && specData.process_capability.cp !== null && specData.process_capability.cp !== undefined) {
+                            const cpValue = specData.process_capability.cp;
+                            let cpColor = 'bg-secondary';
+                            
+                            if (cpValue < 0.67) cpColor = 'bg-danger';
+                            else if (cpValue < 1.00) cpColor = 'bg-warning';
+                            else if (cpValue < 1.33) cpColor = 'bg-info';
+                            else cpColor = 'bg-success';
+                            
+                            cpBadge.textContent = `Cp: ${cpValue.toFixed(2)}`;
+                            cpBadge.classList.add(cpColor);
+                        } else {
+                            cpBadge.textContent = 'Cp: N/A';
+                            cpBadge.classList.add('bg-secondary');
+                        }
                     }
                 }
             }
@@ -663,9 +686,9 @@ class DataLoader {
     }
     
     // Spec 데이터 로드
-    async loadSpecData(targetId) {
+    async loadSpecData(targetId, startDate, endDate) {
         try {
-            const cacheKey = `spec_${targetId}`;
+            const cacheKey = `spec_${targetId}_${startDate}_${endDate}`;
             
             // 캐시 확인
             if (this.cache[cacheKey] && 
@@ -679,7 +702,19 @@ class DataLoader {
             // SPEC이 있는 경우에만 통계 정보 가져오기
             if (response) {
                 try {
-                    const statsData = await api.getTargetStatistics(targetId);
+                    // 날짜 범위가 있는 경우 해당 기간에 대한 통계 데이터 요청
+                    let statsData;
+                    if (startDate && endDate) {
+                        // 시작일부터 현재까지의 일수 계산 (통계 API가 days 파라미터를 사용함)
+                        const start = new Date(startDate);
+                        const today = new Date();
+                        const diffTime = Math.abs(today - start);
+                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                        
+                        statsData = await api.getTargetStatistics(targetId, diffDays + 1);
+                    } else {
+                        statsData = await api.getTargetStatistics(targetId);
+                    }
                     
                     // 통계 데이터와 SPEC 정보 합치기
                     const specData = {
@@ -807,16 +842,6 @@ function setupEventListeners() {
     // 타겟 저장 버튼 클릭
     document.getElementById('save-targets-btn').addEventListener('click', () => {
         handleSaveTargetsFromModal();
-    });
-
-    // 이메일 전송 버튼 클릭
-    document.getElementById('email-pdf-btn').addEventListener('click', () => {
-        prepareEmailModal();
-    });
-    
-    // 이메일 전송 확인 버튼 클릭
-    document.getElementById('send-email-btn').addEventListener('click', () => {
-        sendPdfByEmail();
     });
 }
 
@@ -1296,14 +1321,14 @@ $(document).on('change', '#targets-checklist-body input[type="checkbox"]', funct
     });
 }
 
- // 단일 차트 로드
- async function loadChart(targetInfo, startDate, endDate) {
+// 단일 차트 로드
+async function loadChart(targetInfo, startDate, endDate) {
     try {
         // 측정 데이터 로드 - 날짜 범위 명시적 전달
         const measurements = await dataLoader.loadMeasurementData(targetInfo.targetId, startDate, endDate);
         
-        // SPEC 데이터 로드
-        const specData = await dataLoader.loadSpecData(targetInfo.targetId);
+        // SPEC 데이터 로드 - 날짜 범위 전달
+        const specData = await dataLoader.loadSpecData(targetInfo.targetId, startDate, endDate);
         
         // 데이터가 없는 경우 빈 차트 표시
         if (!measurements || measurements.length === 0) {
@@ -1315,7 +1340,7 @@ $(document).on('change', '#targets-checklist-body input[type="checkbox"]', funct
     } catch (error) {
         console.error(`차트 로드 오류 (타겟 ID: ${targetInfo.targetId}):`, error);
     }
- }
+}
  
  // 모든 차트 로드
  async function loadAllCharts() {
@@ -1370,305 +1395,3 @@ $(document).on('change', '#targets-checklist-body input[type="checkbox"]', funct
 $(document).ready(function() {
     initialize();
 });
-
-// 여기서부터 새로운 이메일 함수 추가 (기존 코드 아래에 추가)
-
-// 이메일 모달 준비 함수
-async function prepareEmailModal() {
-    try {
-        // 선택된 타겟 확인
-        const targets = targetManager.getAllTargets();
-        if (targets.length === 0) {
-            alert('전송할 타겟이 선택되지 않았습니다. 먼저 타겟을 추가해주세요.');
-            return;
-        }
-        
-        // 날짜 범위 확인
-        const dateRange = document.getElementById('date-range').value;
-        if (!dateRange) {
-            alert('날짜 범위가 설정되지 않았습니다.');
-            return;
-        }
-        
-        // 이메일 제목에 날짜 추가
-        document.getElementById('email-subject').value = `DICD 측정 관리 시스템 보고서 (${dateRange})`;
-        
-        // 수신자 목록 로드
-        await loadEmailRecipients();
-        
-        // 모달 표시
-        $('#email-pdf-modal').modal('show');
-        
-    } catch (error) {
-        console.error('이메일 모달 준비 오류:', error);
-        alert('이메일 전송 준비 중 오류가 발생했습니다.');
-    }
-}
-
-// 수신자 목록 로드 함수
-async function loadEmailRecipients() {
-    try {
-        // 저장된 수신자 목록 로드
-        // 이 부분은 실제 백엔드 API가 있다면 그것을 사용하게 됩니다
-        // 이 예제에서는 로컬 스토리지에서 가져옵니다
-        const savedRecipients = localStorage.getItem('report_recipients');
-        let recipients = [];
-        
-        if (savedRecipients) {
-            try {
-                recipients = JSON.parse(savedRecipients);
-            } catch (e) {
-                console.error('로컬 스토리지에서 수신자 목록 불러오기 오류:', e);
-            }
-        }
-        
-        // Select2 초기화 (있다면)
-        const $select = $('#email-recipients');
-        
-        // 기존 옵션 제거
-        $select.empty();
-        
-        // 활성화된 수신자만 추가
-        recipients
-            .filter(r => r.active !== false)  // active가 없거나 true인 경우 모두 포함
-            .forEach(recipient => {
-                $select.append(new Option(recipient.email, recipient.email, false, false));
-            });
-        
-        // Select2 초기화
-        if ($.fn.select2) {
-            $select.select2({
-                theme: 'bootstrap4',
-                tags: true,
-                tokenSeparators: [',', ' '],
-                placeholder: '수신자 선택 또는 입력...'
-            });
-        }
-        
-    } catch (error) {
-        console.error('수신자 목록 로드 오류:', error);
-        alert('수신자 목록을 불러오는데 실패했습니다.');
-    }
-}
-
-// PDF를 이메일로 전송하는 함수
-async function sendPdfByEmail() {
-    try {
-        // 로딩 표시
-        document.getElementById('loading-indicator').style.display = 'block';
-        document.getElementById('send-email-btn').disabled = true;
-        
-        // 선택된 수신자 가져오기
-        const selectedRecipients = $('#email-recipients').val() || [];
-        
-        // 추가 수신자 가져오기
-        const additionalRecipients = document.getElementById('additional-recipients').value;
-        let recipientsList = [...selectedRecipients];
-        
-        if (additionalRecipients) {
-            // 쉼표로 구분된 이메일 주소를 분리하여 추가
-            const additionalEmails = additionalRecipients.split(',')
-                .map(email => email.trim())
-                .filter(email => email && email.includes('@'));
-                
-            recipientsList = [...recipientsList, ...additionalEmails];
-        }
-        
-        // 중복 제거
-        recipientsList = [...new Set(recipientsList)];
-        
-        if (recipientsList.length === 0) {
-            alert('수신자를 한 명 이상 선택하거나 입력해주세요.');
-            document.getElementById('loading-indicator').style.display = 'none';
-            document.getElementById('send-email-btn').disabled = false;
-            return;
-        }
-        
-        // 이메일 제목 가져오기
-        const emailSubject = document.getElementById('email-subject').value;
-        
-        // PDF 생성 (기존 exportToPDF 함수의 로직을 재사용)
-        // 하지만 대신 PDF를 다운로드하는 대신 Base64 문자열로 반환
-        const pdfBase64 = await generatePdfAsBase64();
-        
-        // 이메일 본문 생성
-        const dateRange = document.getElementById('date-range').value;
-        const emailBody = `
-            <html>
-            <body>
-                <h2>DICD 측정 관리 시스템 보고서</h2>
-                <p>기간: ${dateRange}</p>
-                <p>첨부된 PDF 보고서를 확인해 주세요.</p>
-                <p>감사합니다.</p>
-            </body>
-            </html>
-        `;
-        
-        // 이메일 전송 API 호출 부분
-        console.log('Recipients:', recipientsList);
-
-        const formData = new FormData();
-        formData.append('recipients', JSON.stringify(recipientsList));
-        formData.append('subject', emailSubject);
-        formData.append('body', emailBody);
-
-        // base64 문자열의 'data:application/pdf;base64,' 부분 제거
-        let cleanPdfBase64 = pdfBase64;
-        if (pdfBase64.startsWith('data:application/pdf;base64,')) {
-            cleanPdfBase64 = pdfBase64.replace('data:application/pdf;base64,', '');
-        }
-        formData.append('pdf_base64', cleanPdfBase64);
-
-        // API 요청
-        const response = await fetch(`${api.baseUrl}/email/send`, {
-            method: 'POST',
-            body: formData
-        });
-
-        // 응답 처리
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error('API 응답 오류:', errorText);
-            throw new Error(`이메일 전송 실패: ${response.statusText}`);
-        }
-        
-        
-        const result = await response.json();
-        
-        // 모달 닫기
-        $('#email-pdf-modal').modal('hide');
-        
-        // 완료 메시지
-        alert('보고서가 이메일로 성공적으로 전송되었습니다.');
-        
-    } catch (error) {
-        console.error('이메일 전송 오류:', error);
-        alert(`이메일 전송 중 오류가 발생했습니다: ${error.message}`);
-    } finally {
-        // 로딩 표시 제거
-        document.getElementById('loading-indicator').style.display = 'none';
-        document.getElementById('send-email-btn').disabled = false;
-    }
-}
-
-// PDF를 Base64 문자열로 생성하는 함수
-async function generatePdfAsBase64() {
-    try {
-        // 기존 exportToPDF 메서드와 유사한 로직으로 PDF 생성
-        const { jsPDF } = window.jspdf;
-        const pdf = new jsPDF('l', 'mm', 'a4');
-        
-        // 페이지 설정
-        const pageWidth = pdf.internal.pageSize.getWidth();
-        const pageHeight = pdf.internal.pageSize.getHeight();
-        const margin = {
-            top: 8,
-            bottom: 5,
-            left: 12,
-            right: 12
-        };
-        
-        // 날짜 범위 가져오기
-        const dateRange = document.getElementById('date-range').value;
-        
-        // 제목 추가
-        pdf.setFontSize(16);
-        pdf.text(`DICD Monitoring (${dateRange})`, pageWidth / 2, margin.top + 5, { align: 'center' });
-        
-        // 차트 배치를 위한 설정
-        const titleSpace = 12;
-        const chartWidth = (pageWidth - margin.left - margin.right - 8) / 2;
-        const chartHeight = (pageHeight - margin.top - margin.bottom - titleSpace - 10) / 3;
-        
-        const chartIds = Object.keys(chartManager.charts);
-        
-        // 차트 개수에 따라 필요한 페이지 수 계산
-        const chartsPerPage = 6;
-        const totalPages = Math.ceil(chartIds.length / chartsPerPage);
-        
-        for (let page = 0; page < totalPages; page++) {
-            // 첫 페이지가 아니면 새 페이지 추가
-            if (page > 0) {
-                pdf.addPage();
-                // 새 페이지에도 제목 추가
-                pdf.setFontSize(16);
-                pdf.text(`DICD Monitoring (${dateRange})`, pageWidth / 2, margin.top + 5, { align: 'center' });
-            }
-            
-            // 현재 페이지의 차트 개수
-            const chartsOnPage = Math.min(chartsPerPage, chartIds.length - page * chartsPerPage);
-            
-            // 페이지 내 차트 위치 계산 및 추가
-            for (let i = 0; i < chartsOnPage; i++) {
-                const chartId = chartIds[page * chartsPerPage + i];
-                const chartInfo = chartManager.charts[chartId];
-                
-                // 행과 열 계산 (3x2 그리드)
-                const row = Math.floor(i / 2);
-                const col = i % 2;
-                
-                // 현재 차트의 x, y 좌표 계산
-                const x = margin.left + col * (chartWidth + 8);
-                const y = margin.top + titleSpace + row * (chartHeight + 5);
-                
-                // 차트 제목 가져오기
-                const targetInfo = targetManager.getTargetById(chartInfo.targetId);
-                
-                // Cp 값 가져오기 (있는 경우)
-                let cpValue = '';
-                const chartCard = document.getElementById(`chart-card-${chartInfo.targetId}`);
-                if (chartCard) {
-                    const cpBadge = chartCard.querySelector('.cp-badge');
-                    if (cpBadge) {
-                        cpValue = cpBadge.textContent;
-                    }
-                }
-                
-                // 차트 제목 생성
-                const chartTitle = `${targetInfo.productGroupName}_${targetInfo.processName}_${targetInfo.targetName} (${cpValue})`;
-                
-                // 차트 제목 추가
-                pdf.setFontSize(8);
-                pdf.text(chartTitle, x + chartWidth/2, y - 2, { align: 'center' });
-                
-                // 차트 캔버스를 이미지로 변환
-                const canvas = document.getElementById(chartId);
-                
-                // 차트 비율 조정
-                const originalAspectRatio = canvas.width / canvas.height;
-                const adjustedAspectRatio = originalAspectRatio * 0.85;
-                
-                // 조정된 비율로 이미지 크기 계산
-                let imgWidth = chartWidth;
-                let imgHeight = imgWidth / adjustedAspectRatio;
-                
-                // 높이가 할당된 공간을 초과하면 조정
-                if (imgHeight > chartHeight) {
-                    imgHeight = chartHeight;
-                    imgWidth = imgHeight * adjustedAspectRatio;
-                }
-                
-                // 중앙 정렬을 위한 오프셋 계산
-                const xOffset = (chartWidth - imgWidth) / 2;
-                
-                // 캔버스를 이미지로 변환
-                const chartImage = canvas.toDataURL('image/png', 1.0);
-                
-                // 차트 주변에 얇은 경계선 그리기
-                pdf.setDrawColor(230, 230, 230);
-                pdf.setLineWidth(0.1);
-                pdf.rect(x, y, chartWidth, chartHeight);
-                
-                // 차트 이미지 추가
-                pdf.addImage(chartImage, 'PNG', x + xOffset, y, imgWidth, imgHeight);
-            }
-        }
-        
-        // PDF를 Base64 문자열로 반환
-        return pdf.output('datauristring');
-        
-    } catch (error) {
-        console.error('PDF 생성 오류:', error);
-        throw new Error('PDF 생성 중 오류가 발생했습니다.');
-    }
-}
