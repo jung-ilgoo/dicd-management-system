@@ -11,6 +11,9 @@
     let productGroupsCache = {};
     let equipmentsCache = {};
     
+    // 전역 변수 (함수 맨 위에 추가)
+    let currentMeasurementId = null;
+
     // 페이지 초기화
     async function initViewPage() {
         // 날짜 범위 선택기 초기화
@@ -388,6 +391,8 @@
 
     async function showMeasurementDetail(measurementId) {
         try {
+            // 현재 측정 ID 저장
+            currentMeasurementId = measurementId;
             // 로딩 표시
             document.getElementById('detail-content').innerHTML = `
             <div class="text-center">
@@ -729,6 +734,27 @@
         document.getElementById('save-edit-btn').addEventListener('click', function() {
             saveEditedMeasurement();
         });
+
+        // 상세 정보에서 삭제 버튼 클릭 이벤트
+        document.getElementById('delete-detail-btn').addEventListener('click', function() {
+            // 상세 모달 닫기
+            $('#detail-modal').modal('hide');
+            
+            // 저장된 측정 ID 사용
+            const measurementId = currentMeasurementId;
+            
+            // 삭제 확인 모달에 ID 설정
+            document.getElementById('delete-measurement-id').value = measurementId;
+            
+            // 삭제 확인 모달 표시
+            $('#delete-confirm-modal').modal('show');
+        });
+
+        // 삭제 확인 버튼 클릭 이벤트
+        document.getElementById('confirm-delete-btn').addEventListener('click', function() {
+            const measurementId = document.getElementById('delete-measurement-id').value;
+            deleteMeasurement(measurementId);
+        });
     }
     
     
@@ -899,6 +925,56 @@ async function saveEditedMeasurement() {
     } catch (error) {
         console.error('측정 데이터 업데이트 실패:', error);
         alert('데이터 업데이트 중 오류가 발생했습니다: ' + error.message);
+    }
+}
+
+// 측정 데이터 삭제
+async function deleteMeasurement(measurementId) {
+    try {
+        // 삭제 확인 모달 닫기
+        $('#delete-confirm-modal').modal('hide');
+        
+        // 로딩 표시
+        const loadingHtml = `
+        <div class="position-fixed w-100 h-100" style="top: 0; left: 0; background: rgba(0, 0, 0, 0.3); z-index: 9999;">
+            <div class="d-flex justify-content-center align-items-center h-100">
+                <div class="spinner-border text-light" role="status">
+                    <span class="sr-only">삭제 중...</span>
+                </div>
+            </div>
+        </div>
+        `;
+        const loadingElement = document.createElement('div');
+        loadingElement.innerHTML = loadingHtml;
+        document.body.appendChild(loadingElement.firstChild);
+        
+        // API 호출하여 데이터 삭제
+        const success = await api.delete(`${API_CONFIG.ENDPOINTS.MEASUREMENTS}/${measurementId}`);
+        
+        // 로딩 제거
+        document.body.removeChild(document.body.lastChild);
+        
+        if (success) {
+            // 캐시에서 삭제
+            measurementsCache = measurementsCache.filter(m => m.id != measurementId);
+            
+            // 테이블 업데이트
+            updateDataTable(measurementsCache);
+            
+            // 성공 메시지
+            alert('측정 데이터가 성공적으로 삭제되었습니다.');
+        } else {
+            alert('측정 데이터 삭제에 실패했습니다.');
+        }
+    } catch (error) {
+        console.error('측정 데이터 삭제 실패:', error);
+        
+        // 로딩 제거 (오류 발생 시에도)
+        if (document.body.lastChild.classList && document.body.lastChild.classList.contains('position-fixed')) {
+            document.body.removeChild(document.body.lastChild);
+        }
+        
+        alert('데이터 삭제 중 오류가 발생했습니다: ' + error.message);
     }
 }
 })();
