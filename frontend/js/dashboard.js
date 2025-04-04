@@ -916,23 +916,27 @@ async function loadNotificationsDashboard() {
             const isSpcViolation = notification.title.includes('SPC 규칙 위반');
             
             html += `
-            <div class="list-group-item list-group-item-action flex-column align-items-start">
-                <div class="d-flex w-100 justify-content-between">
-                    <h5 class="mb-1 text-${color}">
-                        <i class="fas fa-${icon} mr-1"></i> ${notification.title}
-                    </h5>
-                    <small class="text-muted">${formattedDate}</small>
-                </div>
-                <p class="mb-1">${notification.message.length > 150 ? notification.message.substring(0, 150) + '...' : notification.message}</p>
-                <div class="mt-2">
-                    <button class="btn btn-sm btn-outline-secondary view-notification-btn" data-id="${notification.id}">
-                        <i class="fas fa-eye mr-1"></i> 상세 보기
-                    </button>
-                    ${isSpcViolation && notification.target_id ? `
-                    <button class="btn btn-sm btn-outline-primary go-to-spc-btn" data-target-id="${notification.target_id}">
-                        <i class="fas fa-chart-line mr-1"></i> SPC 분석
-                    </button>
-                    ` : ''}
+            <div class="list-group-item list-group-item-action d-flex align-items-start">
+                <div class="d-flex w-100 flex-column">
+                    <div class="d-flex justify-content-between mb-1">
+                        <h5 class="mb-0 text-${color}">
+                            <i class="fas fa-${icon} mr-1"></i> ${notification.title}
+                        </h5>
+                        <small class="text-muted">${formattedDate}</small>
+                    </div>
+                    <div class="d-flex align-items-center">
+                        <p class="mb-0 flex-grow-1 mr-2">${notification.message.length > 150 ? notification.message.substring(0, 150) + '...' : notification.message}</p>
+                        <div class="d-flex">
+                            <button class="btn btn-sm btn-outline-secondary view-notification-btn mr-1" data-id="${notification.id}">
+                                <i class="fas fa-eye mr-1"></i> 상세 보기
+                            </button>
+                            ${isSpcViolation && notification.target_id ? `
+                            <button class="btn btn-sm btn-outline-primary go-to-spc-btn" data-target-id="${notification.target_id}">
+                                <i class="fas fa-chart-line mr-1"></i> SPC 분석
+                            </button>
+                            ` : ''}
+                        </div>
+                    </div>
                 </div>
             </div>
             `;

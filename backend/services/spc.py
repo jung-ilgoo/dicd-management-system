@@ -264,38 +264,3 @@ def analyze_spc(db: Session, target_id: int, days: int = 30) -> Dict[str, Any]:
     
     return result
 
-def create_spc_alert(db: Session, measurement_id: int, rule_id: int, description: str) -> models.SPCAlert:
-    """
-    SPC 알람 생성
-    """
-    # 측정 데이터 찾기
-    measurement = db.query(models.Measurement).filter(models.Measurement.id == measurement_id).first()
-    if not measurement:
-        return None
-    
-    # SPC 규칙 찾기 또는 생성
-    rule = db.query(models.SPCRule).filter(models.SPCRule.id == rule_id).first()
-    if not rule:
-        rule = models.SPCRule(
-            id=rule_id,
-            name=f"Nelson Rule {rule_id}",
-            description=description,
-            is_active=True
-        )
-        db.add(rule)
-        db.commit()
-        db.refresh(rule)
-    
-    # 알람 생성
-    alert = models.SPCAlert(
-        measurement_id=measurement_id,
-        spc_rule_id=rule.id,
-        status="new",
-        description=description
-    )
-    
-    db.add(alert)
-    db.commit()
-    db.refresh(alert)
-    
-    return alert

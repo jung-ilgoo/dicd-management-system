@@ -471,26 +471,44 @@
         });
     
         
-        // 측정값 입력 필드에 소수점 3자리 제한 이벤트 추가
+        // 측정값 입력 필드에 SPEC 검증 이벤트 추가
         document.querySelectorAll('.measurement-value').forEach(input => {
             input.addEventListener('input', function(e) {
-                // 현재 커서 위치 저장
-                let cursorPos = this.selectionStart;
+                // 소수점이 있는 경우
                 let value = this.value;
                 
-                // 소수점이 있는 경우
                 if (value.includes('.')) {
                     const parts = value.split('.');
                     // 소수점 뒤 부분이 3자리 초과인 경우 잘라냄
                     if (parts[1].length > 3) {
                         this.value = `${parts[0]}.${parts[1].substring(0, 3)}`;
-                        // 커서가 최대 길이 이상이면 맨 뒤로, 아니면 현재 위치 유지
-                        cursorPos = (cursorPos > this.value.length) ? this.value.length : cursorPos;
                     }
                 }
                 
-                // 커서 위치 복원
-                this.setSelectionRange(cursorPos, cursorPos);
+                // SPEC 검증 추가
+                // SPEC이 없으면 검사를 건너뜀
+                if (!currentSpec) {
+                    this.classList.remove('spec-exceeded');
+                    return;
+                }
+                
+                const numValue = parseFloat(this.value);
+                
+                // 값이 없거나 NaN인 경우 검증 건너뜀
+                if (this.value === '' || isNaN(numValue)) {
+                    this.classList.remove('spec-exceeded');
+                    return;
+                }
+                
+                // SPEC 범위 체크
+                if (numValue < currentSpec.lsl || numValue > currentSpec.usl) {
+                    // 시각적 표시를 위한 클래스 추가
+                    this.classList.add('spec-exceeded');
+                    console.log('SPEC 초과: ' + numValue); // 디버깅용
+                } else {
+                    // 클래스 제거
+                    this.classList.remove('spec-exceeded');
+                }
             });
         });
     }

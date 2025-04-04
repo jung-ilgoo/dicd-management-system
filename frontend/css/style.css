@@ -510,3 +510,9 @@ input[type=number]::-webkit-outer-spin-button {
 #notifications-dashboard-container .card-footer {
     padding: 0.5rem;
 }
+
+/* SPEC 범위 초과 스타일 */
+.spec-exceeded {
+    border: 2px solid #dc3545 !important;
+    background-color: #fff8f8 !important;
+}
