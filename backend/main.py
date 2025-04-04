@@ -19,8 +19,14 @@ from backend.routers import distribution as distribution_router
 from backend.routers import report_downloads
 # 벌크 데이터 추가
 from backend.routers import bulk_upload as bulk_upload_router
-# 위반 알림
-from backend.routers import notifications as notifications_router
+# main.py의 import 부분에서
+try:
+    from .routers import notifications as notifications_router
+except ImportError:
+    try:
+        from routers import notifications as notifications_router
+    except ImportError:
+        print("알림 라우터를 불러오는데 실패했습니다.")
 
 # 데이터베이스 테이블 생성
 models.Base.metadata.create_all(bind=database.engine)
@@ -54,7 +60,12 @@ app.include_router(distribution_router.router)
 # 보고서 다운로드 라우터 등록
 app.include_router(report_downloads.router)
 app.include_router(bulk_upload_router.router)
-app.include_router(notifications_router.router)
+# 라우터 등록 부분에서
+try:
+    app.include_router(notifications_router.router)
+    print("알림 라우터가 성공적으로 등록되었습니다.")
+except Exception as e:
+    print(f"알림 라우터 등록 실패: {e}")
 
 @app.get("/")
 async def root():

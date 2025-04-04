@@ -483,3 +483,30 @@ input[type=number]::-webkit-outer-spin-button {
 .pattern-row.table-primary {
     background-color: rgba(0, 123, 255, 0.2);
 }
+/* 알림 대시보드 스타일 */
+.border-left-3 {
+    border-left-width: 3px !important;
+}
+
+#notifications-dashboard-container .card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    transition: transform 0.2s ease-in-out;
+}
+
+#notifications-dashboard-container .card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+#notifications-dashboard-container .card-title {
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+#notifications-dashboard-container .card-body {
+    padding: 0.75rem;
+}
+
+#notifications-dashboard-container .card-footer {
+    padding: 0.5rem;
+}

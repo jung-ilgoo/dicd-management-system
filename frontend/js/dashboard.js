@@ -13,6 +13,9 @@ function initDashboard() {
     
     // 이벤트 리스너 설정
     setupEventListeners();
+
+    // 알림 대시보드 로드
+    loadNotificationsDashboard();
 }
 
 // 이벤트 리스너 설정
@@ -859,6 +862,262 @@ function navigateToSpcPage(targetId, productGroup, process, targetName) {
     
     // SPC 분석 페이지로 이동
     window.location.href = 'pages/analysis/spc.html';
+}
+
+// 알림 대시보드 관련 함수들
+async function loadNotificationsDashboard() {
+    try {
+        // 알림 컨테이너
+        const container = document.getElementById('notifications-dashboard-container');
+        
+        // 로딩 표시
+        container.innerHTML = `
+        <div class="text-center py-3">
+            <div class="spinner-border text-primary" role="status">
+                <span class="sr-only">로딩 중...</span>
+            </div>
+            <p class="mt-2">알림 데이터 로드 중...</p>
+        </div>
+        `;
+        
+        // 알림 데이터 가져오기 (최대 15개)
+        const notifications = await api.get(`${API_CONFIG.ENDPOINTS.NOTIFICATIONS}`, { 
+            limit: 15,
+            include_read: true  // 읽은 알림도 포함
+        });
+        
+        // 알림이 없는 경우
+        if (!notifications || notifications.length === 0) {
+            container.innerHTML = `
+            <div class="text-center py-3">
+                <i class="fas fa-check-circle text-success fa-3x mb-3"></i>
+                <p class="text-muted">현재 표시할 알림이 없습니다.</p>
+            </div>
+            `;
+            return;
+        }
+        
+        // 알림 컨텐츠 생성
+        html = '<div class="list-group">';
+        
+        // 알림 타입별 아이콘 및 색상 설정
+        const typeIcons = {
+            'alert': { icon: 'exclamation-circle', color: 'danger' },
+            'warning': { icon: 'exclamation-triangle', color: 'warning' },
+            'info': { icon: 'info-circle', color: 'info' }
+        };
+        
+        // 각 알림에 대한 리스트 아이템 생성
+        notifications.forEach(notification => {
+            const { icon, color } = typeIcons[notification.type] || typeIcons.info;
+            const formattedDate = new Date(notification.created_at).toLocaleString();
+            
+            // SPC 규칙 위반 알림 확인 (제목에 'SPC 규칙 위반'이 포함된 경우)
+            const isSpcViolation = notification.title.includes('SPC 규칙 위반');
+            
+            html += `
+            <div class="list-group-item list-group-item-action flex-column align-items-start">
+                <div class="d-flex w-100 justify-content-between">
+                    <h5 class="mb-1 text-${color}">
+                        <i class="fas fa-${icon} mr-1"></i> ${notification.title}
+                    </h5>
+                    <small class="text-muted">${formattedDate}</small>
+                </div>
+                <p class="mb-1">${notification.message.length > 150 ? notification.message.substring(0, 150) + '...' : notification.message}</p>
+                <div class="mt-2">
+                    <button class="btn btn-sm btn-outline-secondary view-notification-btn" data-id="${notification.id}">
+                        <i class="fas fa-eye mr-1"></i> 상세 보기
+                    </button>
+                    ${isSpcViolation && notification.target_id ? `
+                    <button class="btn btn-sm btn-outline-primary go-to-spc-btn" data-target-id="${notification.target_id}">
+                        <i class="fas fa-chart-line mr-1"></i> SPC 분석
+                    </button>
+                    ` : ''}
+                </div>
+            </div>
+            `;
+        });
+        
+        html += '</div>';
+        
+        // 컨테이너에 내용 추가
+        container.innerHTML = html;
+        
+        // 이벤트 리스너 추가
+        setupNotificationDashboardListeners();
+        
+    } catch (error) {
+        console.error('알림 대시보드 로드 실패:', error);
+        document.getElementById('notifications-dashboard-container').innerHTML = `
+        <div class="alert alert-danger">
+            <i class="fas fa-exclamation-circle mr-1"></i> 알림 데이터를 불러오는 중 오류가 발생했습니다.
+        </div>
+        `;
+    }
+}
+
+// 이벤트 리스너 추가
+function setupNotificationDashboardListeners() {
+    // 상세 보기 버튼
+    document.querySelectorAll('.view-notification-btn').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const notificationId = this.dataset.id;
+            try {
+                const notification = await api.get(`${API_CONFIG.ENDPOINTS.NOTIFICATIONS}/${notificationId}`);
+                showNotificationDetailModal(notification);
+            } catch (error) {
+                console.error('알림 상세 정보 로드 실패:', error);
+            }
+        });
+    });
+    
+    // SPC 분석 버튼
+    document.querySelectorAll('.go-to-spc-btn').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const targetId = this.dataset.targetId;
+            try {
+                // 타겟 정보 가져오기
+                const target = await api.get(`${API_CONFIG.ENDPOINTS.TARGETS}/${targetId}`);
+                // 공정 정보 가져오기
+                const process = await api.get(`${API_CONFIG.ENDPOINTS.PROCESSES}/${target.process_id}`);
+                // 제품군 정보 가져오기
+                const productGroup = await api.get(`${API_CONFIG.ENDPOINTS.PRODUCT_GROUPS}/${process.product_group_id}`);
+                
+                // SPC 분석 페이지로 이동하기 위한 정보 저장
+                const targetInfo = {
+                    targetId: targetId,
+                    productGroup: productGroup.name,
+                    process: process.name,
+                    targetName: target.name
+                };
+                
+                localStorage.setItem('selected_target_for_spc', JSON.stringify(targetInfo));
+                
+                // SPC 분석 페이지로 이동
+                window.location.href = 'pages/analysis/spc.html';
+            } catch (error) {
+                console.error('타겟 정보 로드 실패:', error);
+                alert('SPC 분석 페이지로 이동하는 중 오류가 발생했습니다.');
+            }
+        });
+    });
+}
+
+// 알림 상세 정보 모달 표시
+function showNotificationDetailModal(notification) {
+    // 기존 모달 제거
+    const existingModal = document.getElementById('notification-detail-modal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // 알림 타입별 색상 설정
+    const typeColors = {
+        'alert': 'danger',
+        'warning': 'warning',
+        'info': 'info'
+    };
+    
+    const color = typeColors[notification.type] || 'info';
+    const formattedDate = new Date(notification.created_at).toLocaleString();
+    const formattedMessage = notification.message.replace(/\n/g, '<br>');
+    
+    // SPC 규칙 위반 알림 확인
+    const isSpcViolation = notification.title.includes('SPC 규칙 위반');
+    
+    // 모달 HTML 생성 부분 수정
+    const modalHtml = `
+    <div class="modal fade" id="notification-detail-modal" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header bg-${color} text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-${notification.type === 'alert' ? 'exclamation-circle' : 
+                                    notification.type === 'warning' ? 'exclamation-triangle' : 
+                                    'info-circle'} mr-1"></i>
+                        ${notification.title}
+                    </h5>
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p>${formattedMessage}</p>
+                    <hr>
+                    <small class="text-muted">
+                        <i class="far fa-clock mr-1"></i> ${formattedDate}
+                    </small>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">닫기</button>
+                    ${isSpcViolation && notification.target_id ? `
+                    <button type="button" class="btn btn-primary" id="modal-go-to-spc-btn" data-target-id="${notification.target_id}">
+                        <i class="fas fa-chart-line mr-1"></i> SPC 분석 페이지로 이동
+                    </button>
+                    ` : ''}
+                </div>
+            </div>
+        </div>
+    </div>
+    `;
+    
+    // 모달을 body에 추가
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // 모달 표시
+    $('#notification-detail-modal').modal('show');
+    
+    // 읽음 표시 버튼 이벤트 리스너
+    const markReadBtn = document.getElementById('modal-mark-read-btn');
+    if (markReadBtn) {
+        markReadBtn.addEventListener('click', async function() {
+            const notificationId = this.dataset.id;
+            try {
+                await api.put(`${API_CONFIG.ENDPOINTS.NOTIFICATIONS}/${notificationId}/read`, {});
+                // 알림 대시보드 새로고침
+                loadNotificationsDashboard();
+                // 모달 닫기
+                $('#notification-detail-modal').modal('hide');
+            } catch (error) {
+                console.error('알림 읽음 표시 실패:', error);
+            }
+        });
+    }
+    
+    // SPC 분석 페이지로 이동 버튼 이벤트 리스너
+    const goToSpcBtn = document.getElementById('modal-go-to-spc-btn');
+    if (goToSpcBtn) {
+        goToSpcBtn.addEventListener('click', async function() {
+            const targetId = this.dataset.targetId;
+            try {
+                // 타겟 정보 가져오기
+                const target = await api.get(`${API_CONFIG.ENDPOINTS.TARGETS}/${targetId}`);
+                // 공정 정보 가져오기
+                const process = await api.get(`${API_CONFIG.ENDPOINTS.PROCESSES}/${target.process_id}`);
+                // 제품군 정보 가져오기
+                const productGroup = await api.get(`${API_CONFIG.ENDPOINTS.PRODUCT_GROUPS}/${process.product_group_id}`);
+                
+                // SPC 분석 페이지로 이동하기 위한 정보 저장
+                const targetInfo = {
+                    targetId: targetId,
+                    productGroup: productGroup.name,
+                    process: process.name,
+                    targetName: target.name
+                };
+                
+                localStorage.setItem('selected_target_for_spc', JSON.stringify(targetInfo));
+                
+                // 모달 닫기
+                $('#notification-detail-modal').modal('hide');
+                
+                // SPC 분석 페이지로 이동
+                window.location.href = 'pages/analysis/spc.html';
+            } catch (error) {
+                console.error('타겟 정보 로드 실패:', error);
+                alert('SPC 분석 페이지로 이동하는 중 오류가 발생했습니다.');
+            }
+        });
+    }
 }
 
 // 페이지 로드 시 대시보드 초기화
