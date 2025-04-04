@@ -185,16 +185,22 @@ def analyze_spc(db: Session, target_id: int, days: int = 30) -> Dict[str, Any]:
             if 0 <= pos < len(lot_nos):
                 pattern["lot_no"] = lot_nos[pos]
         
-        # 여기에 알림 생성 코드 추가
+        # 변경 후:
         if patterns:
             from ..services import notification_service
             for pattern in patterns:
+                # SPC 규칙 위반에 대한 설명 구성 (LOT NO가 있으면 포함)
+                description = pattern["description"]
+                if "lot_no" in pattern:
+                    # 이미 LOT NO 정보가 포함된 패턴 설명 사용
+                    description = f"{description} (LOT NO: {pattern['lot_no']})"
+                
                 notification_service.create_spc_rule_violation_notification(
                     db=db,
                     target_id=target_id,
                     rule_id=pattern["rule"],
                     rule_name=f"Rule {pattern['rule']}",
-                    description=pattern["description"],
+                    description=description,
                     measurement_ids=[measurements[-1].id] if measurements else None
                 )
     

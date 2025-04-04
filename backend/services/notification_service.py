@@ -155,6 +155,7 @@ def create_spec_violation_notification(
         measurement_id=measurement.id
     )
 
+# 변경 후:
 def create_spc_rule_violation_notification(
     db: Session,
     target_id: int,
@@ -174,6 +175,7 @@ def create_spc_rule_violation_notification(
     # 알림 메시지 생성
     title = f"SPC 규칙 위반 감지: {product_group.name}-{process.name}-{target.name}"
     
+    # LOT NO 정보는 이미 description에 포함되어 있으므로 별도로 추가하지 않음
     message = (
         f"SPC 규칙 {rule_id} ({rule_name})에 대한 위반이 감지되었습니다.\n"
         f"설명: {description}"
