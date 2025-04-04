@@ -160,6 +160,31 @@ def create_measurement(db: Session, measurement_data: measurement.MeasurementCre
     db.add(db_measurement)
     db.commit()
     db.refresh(db_measurement)
+
+    # SPEC 체크 및 알림 생성
+    active_spec = db.query(models.Spec).filter(
+        models.Spec.target_id == db_measurement.target_id,
+        models.Spec.is_active == True
+    ).first()
+
+    if active_spec:
+        # SPEC 범위를 벗어난 값이 있는지 확인
+        values = [
+            db_measurement.value_top,
+            db_measurement.value_center,
+            db_measurement.value_bottom,
+            db_measurement.value_left,
+            db_measurement.value_right
+        ]
+        
+        # SPEC 범위를 벗어난 값이 있는 경우 알림 생성
+        if any(v < active_spec.lsl or v > active_spec.usl for v in values):
+            from ..services import notification_service
+            notification_service.create_spec_violation_notification(
+                db=db,
+                measurement=db_measurement,
+                spec=active_spec
+            )
     return db_measurement
 
 # backend/database/crud.py 파일의 get_measurements 함수 업데이트
@@ -242,6 +267,31 @@ def update_measurement(db: Session, measurement_id: int, measurement_data: measu
         
         db.commit()
         db.refresh(db_measurement)
+
+        # SPEC 체크 및 알림 생성
+        active_spec = db.query(models.Spec).filter(
+            models.Spec.target_id == db_measurement.target_id,
+            models.Spec.is_active == True
+        ).first()
+
+        if active_spec:
+            # SPEC 범위를 벗어난 값이 있는지 확인
+            values = [
+                db_measurement.value_top,
+                db_measurement.value_center,
+                db_measurement.value_bottom,
+                db_measurement.value_left,
+                db_measurement.value_right
+            ]
+            
+            # SPEC 범위를 벗어난 값이 있는 경우 알림 생성
+            if any(v < active_spec.lsl or v > active_spec.usl for v in values):
+                from ..services import notification_service
+                notification_service.create_spec_violation_notification(
+                    db=db,
+                    measurement=db_measurement,
+                    spec=active_spec
+                )
     
     return db_measurement
 

@@ -26,7 +26,8 @@ const API_CONFIG = {
         // 분포 분석 엔드포인트 추가
         DISTRIBUTION: "/distribution",
         // 박스플롯 분석 엔드포인트 추가
-        BOXPLOT: '/statistics/boxplot'
+        BOXPLOT: '/statistics/boxplot',
+        NOTIFICATIONS: '/notifications'
     }
 };
 

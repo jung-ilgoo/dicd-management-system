@@ -184,6 +184,19 @@ def analyze_spc(db: Session, target_id: int, days: int = 30) -> Dict[str, Any]:
             pos = pattern.get("position", 0)
             if 0 <= pos < len(lot_nos):
                 pattern["lot_no"] = lot_nos[pos]
+        
+        # 여기에 알림 생성 코드 추가
+        if patterns:
+            from ..services import notification_service
+            for pattern in patterns:
+                notification_service.create_spc_rule_violation_notification(
+                    db=db,
+                    target_id=target_id,
+                    rule_id=pattern["rule"],
+                    rule_name=f"Rule {pattern['rule']}",
+                    description=pattern["description"],
+                    measurement_ids=[measurements[-1].id] if measurements else None
+                )
     
     # 위치별 데이터도 분석
     position_values = {
@@ -210,6 +223,7 @@ def analyze_spc(db: Session, target_id: int, days: int = 30) -> Dict[str, Any]:
                 lot_nos
             )
             position_patterns[position] = pos_patterns
+            
     
     # SPEC 가져오기
     active_spec = db.query(models.Spec).filter(
