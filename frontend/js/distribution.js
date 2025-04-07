@@ -63,6 +63,23 @@ function registerEventListeners() {
         runDistributionAnalysis(targetId, days);
     });
     
+    // 분석 기간 선택 변경시
+    $('#analysis-period').on('change', function() {
+        const period = $(this).val();
+        if (period === 'custom') {
+            $('#custom-date-range').show();
+            // 기본값으로 오늘 날짜와 30일 전 날짜 설정
+            const today = new Date();
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(today.getDate() - 30);
+            
+            $('#end-date').val(formatDateForInput(today));
+            $('#start-date').val(formatDateForInput(thirtyDaysAgo));
+        } else {
+            $('#custom-date-range').hide();
+        }
+    });
+
     // 위치 다이어그램에서 위치 선택시
     $('.position-cell').on('click', function() {
         const position = $(this).data('position');
@@ -77,6 +94,14 @@ function registerEventListeners() {
         selectedPosition = position;
         updatePositionChart();
     });
+}
+
+// formatDateForInput 함수 추가 (registerEventListeners 함수 바깥에)
+function formatDateForInput(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
 }
 
 // 제품군 목록 가져오기
@@ -130,7 +155,7 @@ async function fetchTargets(processId) {
     }
 }
 
-// 분포 분석 실행 함수
+// runDistributionAnalysis 함수 변경
 async function runDistributionAnalysis(targetId, days) {
     // 로딩 표시
     $('#initial-message').hide();
@@ -141,8 +166,51 @@ async function runDistributionAnalysis(targetId, days) {
         // 선택된 타겟 이름 저장
         currentTarget = $('#target option:selected').text();
         
+        // 사용자 지정 기간 처리
+        let analysisParams = {};
+        let periodTitle = '';
+        
+        if (days === 'custom') {
+            const startDate = $('#start-date').val();
+            const endDate = $('#end-date').val();
+            
+            if (!startDate || !endDate) {
+                alert('시작 날짜와 종료 날짜를 모두 선택해주세요.');
+                hideLoading();
+                $('#initial-message').show();
+                return;
+            }
+            
+            // 날짜 유효성 검사
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            
+            if (start > end) {
+                alert('시작 날짜는 종료 날짜보다 이전이어야 합니다.');
+                hideLoading();
+                $('#initial-message').show();
+                return;
+            }
+            
+            analysisParams = {
+                start_date: startDate,
+                end_date: endDate
+            };
+            
+            const startDateObj = new Date(startDate);
+            const endDateObj = new Date(endDate);
+            const timeDiff = Math.abs(endDateObj - startDateObj);
+            const diffDays = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+            
+            periodTitle = `${startDate} ~ ${endDate} (${diffDays}일)`;
+        } else {
+            analysisParams = { days: days };
+            periodTitle = `최근 ${days}일`;
+        }
+        
         // 분포 분석 API 호출
-        const data = await api.analyzeDistribution(targetId, days);
+        // API 수정 필요 - 다음과 같이 api.js 파일의 analyzeDistribution 함수 수정 필요
+        const data = await api.analyzeDistribution(targetId, analysisParams);
         currentData = data;
         
         // 결과 표시
@@ -150,22 +218,20 @@ async function runDistributionAnalysis(targetId, days) {
         $('#analysis-result').show();
         
         // 타이틀 업데이트
-        updateAnalysisTitle(currentTarget, days);
+        updateAnalysisTitle(currentTarget, periodTitle);
         
-        // 분석 결과 표시
+        // 기존 코드와 동일
         renderDistributionChart(data);
         renderQQPlot(data);
         renderBoxPlot(data);
         updateStatistics(data);
         updateSpecInfo(data);
         
-        // 기본 위치(center)에 대한 차트 표시
         selectedPosition = 'center';
         $('.position-cell').removeClass('bg-primary text-white');
         $('.position-cell.position-center').addClass('bg-primary text-white');
         updatePositionChart();
         
-        // 위치별 통계 테이블 업데이트
         updatePositionStatistics(data);
         
     } catch (error) {
@@ -204,8 +270,9 @@ function hideLoading() {
 }
 
 // 분석 타이틀 업데이트
-function updateAnalysisTitle(targetName, days) {
-    $('#analysis-title').text(`${targetName} 분포 분석 결과 (최근 ${days}일)`);
+// updateAnalysisTitle 함수 변경
+function updateAnalysisTitle(targetName, periodText) {
+    $('#analysis-title').text(`${targetName} 분포 분석 결과 (${periodText})`);
 }
 
 // 분포 차트 렌더링 함수

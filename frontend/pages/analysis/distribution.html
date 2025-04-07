@@ -172,6 +172,7 @@
                                         </select>
                                     </div>
                                 </div>
+                                <!-- 변경 후 -->
                                 <div class="col-md-3">
                                     <div class="form-group">
                                         <label for="analysis-period">분석 기간</label>
@@ -181,7 +182,22 @@
                                             <option value="30" selected>최근 30일</option>
                                             <option value="60">최근 60일</option>
                                             <option value="90">최근 90일</option>
+                                            <option value="custom">사용자 지정</option>
                                         </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6" id="custom-date-range" style="display: none;">
+                                    <div class="form-group">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <label for="start-date">시작 날짜</label>
+                                                <input type="date" class="form-control" id="start-date">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label for="end-date">종료 날짜</label>
+                                                <input type="date" class="form-control" id="end-date">
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

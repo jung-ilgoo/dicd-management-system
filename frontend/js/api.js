@@ -274,14 +274,26 @@ class API {
         return this.delete(`${this.endpoints.PROCESSES}/${processId}`);
     }
 
-    // 분포 분석 관련 메서드 (특별 처리)
-    async analyzeDistribution(targetId, days = 30) {
+    // 변경 후
+    async analyzeDistribution(targetId, params = { days: 30 }) {
         // /api가 중복되므로 기본 URL에서 /api를 제거한 URL 사용
         const baseUrl = this.baseUrl.replace('/api', '');
         const url = `${baseUrl}/api${this.endpoints.DISTRIBUTION}/analyze/${targetId}`;
         
         try {
-            const response = await fetch(`${url}?days=${days}`);
+            // URL 쿼리 파라미터 생성
+            const queryParams = new URLSearchParams();
+            if (params.days) {
+                queryParams.append('days', params.days);
+            }
+            if (params.start_date) {
+                queryParams.append('start_date', params.start_date);
+            }
+            if (params.end_date) {
+                queryParams.append('end_date', params.end_date);
+            }
+            
+            const response = await fetch(`${url}?${queryParams.toString()}`);
             if (!response.ok) {
                 throw new Error(`HTTP error! Status: ${response.status}`);
             }
@@ -291,6 +303,7 @@ class API {
             throw error;
         }
     }
+    
     // 박스플롯 분석용 메서드
     async getBoxplotData(targetId, groupBy, days = 30) {
         return this.get(`${this.endpoints.BOXPLOT}/${targetId}`, { 
