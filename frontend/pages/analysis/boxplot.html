@@ -176,7 +176,25 @@
                                         <option value="30" selected>최근 30일</option>
                                         <option value="60">최근 60일</option>
                                         <option value="90">최근 90일</option>
+                                        <option value="custom">사용자 지정</option>
                                     </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6" id="custom-date-container" style="display: none;">
+                                <div class="form-group">
+                                    <label>사용자 지정 기간</label>
+                                    <div class="input-group">
+                                        <div class="input-group-prepend">
+                                            <span class="input-group-text">
+                                                <i class="far fa-calendar-alt"></i>
+                                            </span>
+                                        </div>
+                                        <input type="date" class="form-control" id="start-date">
+                                        <div class="input-group-prepend input-group-append">
+                                            <span class="input-group-text">~</span>
+                                        </div>
+                                        <input type="date" class="form-control" id="end-date">
+                                    </div>
                                 </div>
                             </div>
                         </div>

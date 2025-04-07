@@ -305,11 +305,18 @@ class API {
     }
     
     // 박스플롯 분석용 메서드
-    async getBoxplotData(targetId, groupBy, days = 30) {
-        return this.get(`${this.endpoints.BOXPLOT}/${targetId}`, { 
-            group_by: groupBy,
-            days: days 
-        });
+    async getBoxplotData(targetId, groupBy, params = { days: 30 }) {
+        // 호환성을 위해 숫자 타입 처리
+        if (typeof params === 'number') {
+            params = { days: params };
+        }
+        
+        // group_by 파라미터가 없으면 추가
+        if (!params.group_by) {
+            params.group_by = groupBy;
+        }
+        
+        return this.get(`${this.endpoints.BOXPLOT}/${targetId}`, params);
     }
     async markNotificationAsRead(notificationId) {
         return this.put(`${this.endpoints.NOTIFICATIONS}/${notificationId}/read`, {});

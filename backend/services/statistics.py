@@ -140,7 +140,7 @@ def get_process_statistics(db: Session, target_id: int, start_date=None, end_dat
     
     return result
 
-def get_boxplot_data(db: Session, target_id: int, group_by: str, start_date=None) -> Dict[str, Any]:
+def get_boxplot_data(db: Session, target_id: int, group_by: str, start_date=None, end_date=None) -> Dict[str, Any]:
     """
     박스플롯 분석을 위한 데이터 계산
     group_by: 'equipment' 또는 'device'
@@ -150,6 +150,9 @@ def get_boxplot_data(db: Session, target_id: int, group_by: str, start_date=None
     
     if start_date:
         query = query.filter(models.Measurement.created_at >= start_date)
+    
+    if end_date:
+        query = query.filter(models.Measurement.created_at <= end_date)
     
     measurements = query.all()
     
