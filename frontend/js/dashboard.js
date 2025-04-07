@@ -52,6 +52,12 @@ function setupEventListeners() {
 // 기존 loadCpkHeatmap 함수를 아래 코드로 교체
 async function loadCpkHeatmap() {
     try {
+        // 히트맵 기간 설정 (백엔드 기본값과 일치시킴)
+        const heatmapDays = 14;
+        
+        // 히트맵 기간 표시 업데이트
+        document.getElementById('cpk-heatmap-period').textContent = `(최근 ${heatmapDays}일)`;
+
         // 로딩 표시
         document.getElementById('cpk-heatmap-container').innerHTML = `
         <div class="text-center py-3">
@@ -880,10 +886,10 @@ async function loadNotificationsDashboard() {
         </div>
         `;
         
-        // 알림 데이터 가져오기 (최대 15개)
+        // 알림 데이터 가져오기 (읽지 않은 알림만)
         const notifications = await api.get(`${API_CONFIG.ENDPOINTS.NOTIFICATIONS}`, { 
             limit: 15,
-            include_read: true  // 읽은 알림도 포함
+            include_read: false  // 읽지 않은 알림만 포함하도록 변경
         });
         
         // 알림이 없는 경우
@@ -916,11 +922,12 @@ async function loadNotificationsDashboard() {
             const isSpcViolation = notification.title.includes('SPC 규칙 위반');
             
             html += `
-            <div class="list-group-item list-group-item-action d-flex align-items-start">
+            <div class="list-group-item list-group-item-action d-flex align-items-start ${notification.is_read ? 'bg-light' : ''}">
                 <div class="d-flex w-100 flex-column">
                     <div class="d-flex justify-content-between mb-1">
                         <h5 class="mb-0 text-${color}">
-                            <i class="fas fa-${icon} mr-1"></i> ${notification.title}
+                            <i class="fas fa-${icon} mr-1"></i> 
+                            ${notification.title}
                         </h5>
                         <small class="text-muted">${formattedDate}</small>
                     </div>
@@ -1054,6 +1061,11 @@ function showNotificationDetailModal(notification) {
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">닫기</button>
+                    ${!notification.is_read ? `
+                    <button type="button" class="btn btn-success" id="modal-mark-read-btn" data-id="${notification.id}">
+                        <i class="fas fa-check-circle mr-1"></i> 읽음으로 표시
+                    </button>
+                    ` : ''}
                     ${isSpcViolation && notification.target_id ? `
                     <button type="button" class="btn btn-primary" id="modal-go-to-spc-btn" data-target-id="${notification.target_id}">
                         <i class="fas fa-chart-line mr-1"></i> SPC 분석 페이지로 이동
@@ -1071,19 +1083,36 @@ function showNotificationDetailModal(notification) {
     // 모달 표시
     $('#notification-detail-modal').modal('show');
     
-    // 읽음 표시 버튼 이벤트 리스너
+    // 읽음 표시 버튼 이벤트 리스너 부분 수정
     const markReadBtn = document.getElementById('modal-mark-read-btn');
     if (markReadBtn) {
         markReadBtn.addEventListener('click', async function() {
-            const notificationId = this.dataset.id;
             try {
-                await api.put(`${API_CONFIG.ENDPOINTS.NOTIFICATIONS}/${notificationId}/read`, {});
+                const notificationId = this.dataset.id;
+                
+                // 버튼 비활성화 및 로딩 상태 표시
+                this.disabled = true;
+                this.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> 처리 중...';
+                
+                // API 호출로 읽음 표시
+                await api.markNotificationAsRead(notificationId);
+                
+                // 버튼 상태 업데이트
+                this.classList.remove('btn-success');
+                this.classList.add('btn-secondary');
+                this.innerHTML = '<i class="fas fa-check mr-1"></i> 읽음 처리됨';
+                
                 // 알림 대시보드 새로고침
                 loadNotificationsDashboard();
-                // 모달 닫기
-                $('#notification-detail-modal').modal('hide');
+                
+                // 잠시 후 모달 닫기 (사용자에게 피드백 보여주기 위해 지연)
+                setTimeout(() => {
+                    $('#notification-detail-modal').modal('hide');
+                }, 1000);
             } catch (error) {
                 console.error('알림 읽음 표시 실패:', error);
+                this.disabled = false;
+                this.innerHTML = '<i class="fas fa-exclamation-circle mr-1"></i> 오류 발생 - 재시도';
             }
         });
     }

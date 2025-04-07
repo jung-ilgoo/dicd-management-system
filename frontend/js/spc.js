@@ -6,6 +6,14 @@
     let selectedProcessId = null;
     let selectedTargetId = null;
     let rChart = null; // 추가: R 차트 변수
+
+    // 날짜를 input[type="date"]에 사용할 형식(YYYY-MM-DD)으로 변환
+    function formatDateForInput(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
     
     
     // 페이지 초기화
@@ -155,7 +163,34 @@
         }
         
         // 분석 기간 가져오기
-        const days = parseInt(document.getElementById('analysis-period').value);
+        const periodSelect = document.getElementById('analysis-period');
+        let days = parseInt(periodSelect.value);
+        let startDate = null;
+        let endDate = null;
+        
+        // 사용자 지정 기간인 경우
+        if (periodSelect.value === 'custom') {
+            startDate = document.getElementById('start-date').value;
+            endDate = document.getElementById('end-date').value;
+            
+            if (!startDate || !endDate) {
+                alert('시작일과 종료일을 모두 선택하세요.');
+                return;
+            }
+            
+            // 날짜 범위 유효성 검사
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            
+            if (start > end) {
+                alert('시작일은 종료일보다 이전이어야 합니다.');
+                return;
+            }
+            
+            // 두 날짜 간의 차이(일수) 계산
+            const timeDiff = end.getTime() - start.getTime();
+            days = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1; // +1은 당일 포함
+        }
         
         try {
             // 로딩 표시
@@ -178,8 +213,17 @@
             </div>
             `;
 
+            // API 호출 파라미터 준비
+            let apiParams = { days: days };
+            
+            // 사용자 지정 기간인 경우 시작일/종료일 추가
+            if (periodSelect.value === 'custom') {
+                apiParams.start_date = startDate;
+                apiParams.end_date = endDate;
+            }
+
             // SPC 분석 API 호출
-            const result = await api.analyzeSpc(selectedTargetId, days);
+            const result = await api.analyzeSpc(selectedTargetId, apiParams);
 
             // API 응답 로깅 (디버깅용)
             console.log(`타겟 ID ${selectedTargetId}에 대한 SPC 분석 API 응답:`, result);
@@ -1031,6 +1075,48 @@ function resetPatternHighlight() {
         // 분석 버튼 클릭 이벤트
         document.getElementById('analyze-btn').addEventListener('click', function() {
             analyzeSpc();
+        });
+
+        // 분석 기간 선택 변경 이벤트
+        document.getElementById('analysis-period').addEventListener('change', function() {
+            const dateRangeContainer = document.querySelector('.date-range-container');
+            
+            if (this.value === 'custom') {
+                dateRangeContainer.style.display = 'block';
+                
+                // 기본값 설정 (오늘부터 30일 전까지)
+                const today = new Date();
+                const thirtyDaysAgo = new Date();
+                thirtyDaysAgo.setDate(today.getDate() - 30);
+                
+                // YYYY-MM-DD 형식으로 변환
+                document.getElementById('end-date').value = formatDateForInput(today);
+                document.getElementById('start-date').value = formatDateForInput(thirtyDaysAgo);
+            } else {
+                dateRangeContainer.style.display = 'none';
+            }
+        });
+
+        // 날짜 선택 이벤트 (시작일이 종료일보다 이후면 자동 조정)
+        document.getElementById('start-date').addEventListener('change', function() {
+            const startDate = new Date(this.value);
+            const endDateEl = document.getElementById('end-date');
+            const endDate = new Date(endDateEl.value);
+            
+            if (startDate > endDate) {
+                endDateEl.value = this.value;
+            }
+        });
+
+        // 날짜 선택 이벤트 (종료일이 시작일보다 이전이면 자동 조정)
+        document.getElementById('end-date').addEventListener('change', function() {
+            const endDate = new Date(this.value);
+            const startDateEl = document.getElementById('start-date');
+            const startDate = new Date(startDateEl.value);
+            
+            if (endDate < startDate) {
+                startDateEl.value = this.value;
+            }
         });
     }
     

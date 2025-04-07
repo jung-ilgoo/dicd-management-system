@@ -144,18 +144,28 @@ def detect_nelson_rules(values: List[float], cl: float, ucl: float, lcl: float, 
     return patterns
 
 # analyze_spc 함수 수정
-def analyze_spc(db: Session, target_id: int, days: int = 30) -> Dict[str, Any]:
+def analyze_spc(db: Session, target_id: int, days: int = 30, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> Dict[str, Any]:
     """
     특정 타겟에 대한 SPC 분석 수행
     """
-    # 시작 날짜 계산
-    start_date = datetime.now() - timedelta(days=days)
+    # 시작 날짜와 종료 날짜 설정
+    if not start_date:
+        start_date = datetime.now() - timedelta(days=days)
+    
+    if not end_date:
+        end_date = datetime.now()
     
     # 측정 데이터 쿼리
     query = db.query(models.Measurement).filter(
         models.Measurement.target_id == target_id,
         models.Measurement.created_at >= start_date
-    ).order_by(models.Measurement.created_at.asc())
+    )
+
+    # 종료 날짜가 지정된 경우 추가 필터링
+    if end_date:
+        query = query.filter(models.Measurement.created_at <= end_date)
+
+    query = query.order_by(models.Measurement.created_at.asc())
     
     measurements = query.all()
     
@@ -188,11 +198,35 @@ def analyze_spc(db: Session, target_id: int, days: int = 30) -> Dict[str, Any]:
         # 변경 후:
         if patterns:
             from ..services import notification_service
+            # 최근 24시간 내 생성된 알림 확인
+            recent_time = datetime.now() - timedelta(hours=24)
+            recent_notifications = db.query(models.Notification).filter(
+                models.Notification.target_id == target_id,
+                models.Notification.created_at >= recent_time,
+                models.Notification.type == "warning",
+                models.Notification.title.like("SPC 규칙 위반%")
+            ).all()
+            
+            # 이미 알림이 생성된 규칙 ID 목록
+            existing_rule_ids = set()
+            for notif in recent_notifications:
+                # 메시지에서 규칙 ID 추출 ("SPC 규칙 X (...)" 형식에서 X를 추출)
+                if "SPC 규칙" in notif.message:
+                    rule_part = notif.message.split("(")[0].strip()
+                    try:
+                        rule_id = int(rule_part.split(" ")[2])
+                        existing_rule_ids.add(rule_id)
+                    except (IndexError, ValueError):
+                        pass
+            
             for pattern in patterns:
+                # 이미 알림이 생성된 규칙은 건너뜀
+                if pattern["rule"] in existing_rule_ids:
+                    continue
+                    
                 # SPC 규칙 위반에 대한 설명 구성 (LOT NO가 있으면 포함)
                 description = pattern["description"]
                 if "lot_no" in pattern:
-                    # 이미 LOT NO 정보가 포함된 패턴 설명 사용
                     description = f"{description} (LOT NO: {pattern['lot_no']})"
                 
                 notification_service.create_spc_rule_violation_notification(

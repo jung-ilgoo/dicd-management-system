@@ -14,7 +14,7 @@
         <!-- 메인 사이드바 -->
         <aside class="main-sidebar sidebar-dark-primary elevation-4">
             <!-- 브랜드 제목 -->
-            <a href="../index.html" class="brand-link text-center">
+            <a href="../../index.html" class="brand-link text-center">
                 <span class="brand-text font-weight-light">DICD 관리 시스템</span>
             </a>
 
@@ -184,7 +184,24 @@
                                             <option value="14">최근 14일</option>
                                             <option value="30" selected>최근 30일</option>
                                             <option value="90">최근 90일</option>
+                                            <option value="custom">사용자 지정</option>
                                         </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-8 date-range-container" style="display: none;">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label for="start-date">시작일</label>
+                                                <input type="date" class="form-control" id="start-date">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label for="end-date">종료일</label>
+                                                <input type="date" class="form-control" id="end-date">
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                                 

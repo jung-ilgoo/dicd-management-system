@@ -180,8 +180,12 @@ class API {
     }
     
     // SPC 관련 메서드
-    async analyzeSpc(targetId, days = 30) {
-        return this.get(`${this.endpoints.SPC}/analyze/${targetId}`, { days });
+    async analyzeSpc(targetId, params = { days: 30 }) {
+        // params가 숫자인 경우 days로 처리 (기존 호환성 유지)
+        if (typeof params === 'number') {
+            params = { days: params };
+        }
+        return this.get(`${this.endpoints.SPC}/analyze/${targetId}`, params);
     }
     
     // 통계 관련 메서드
@@ -293,6 +297,9 @@ class API {
             group_by: groupBy,
             days: days 
         });
+    }
+    async markNotificationAsRead(notificationId) {
+        return this.put(`${this.endpoints.NOTIFICATIONS}/${notificationId}/read`, {});
     }
 }
 
