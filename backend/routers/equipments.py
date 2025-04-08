@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from typing import List
-from ..database import crud, models, database
+from typing import List, Optional
+from ..database import crud, database
 from ..schemas import equipment
 
 router = APIRouter(
@@ -14,11 +14,17 @@ router = APIRouter(
 def create_equipment(
     equipment_data: equipment.EquipmentCreate, db: Session = Depends(database.get_db)
 ):
-    return crud.create_equipment(db=db, equipment=equipment_data)
+    try:
+        return crud.create_equipment(db=db, equipment=equipment_data)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @router.get("/", response_model=List[equipment.Equipment])
 def read_equipments(
-    type: str = None, skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)
+    type: Optional[str] = Query(None, description="장비 타입으로 필터링 (코팅, 노광, 현상)"),
+    skip: int = 0, 
+    limit: int = 100, 
+    db: Session = Depends(database.get_db)
 ):
     equipments = crud.get_equipments(db, type=type, skip=skip, limit=limit)
     return equipments
@@ -34,14 +40,17 @@ def read_equipment(equipment_id: int, db: Session = Depends(database.get_db)):
 def update_equipment(
     equipment_id: int, equipment_data: equipment.EquipmentCreate, db: Session = Depends(database.get_db)
 ):
-    db_equipment = crud.update_equipment(db, equipment_id=equipment_id, equipment=equipment_data)
-    if db_equipment is None:
-        raise HTTPException(status_code=404, detail="Equipment not found")
-    return db_equipment
+    try:
+        db_equipment = crud.update_equipment(db, equipment_id=equipment_id, equipment=equipment_data)
+        if db_equipment is None:
+            raise HTTPException(status_code=404, detail="Equipment not found")
+        return db_equipment
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @router.delete("/{equipment_id}", response_model=bool)
 def delete_equipment(equipment_id: int, db: Session = Depends(database.get_db)):
     success = crud.delete_equipment(db, equipment_id=equipment_id)
     if not success:
-        raise HTTPException(status_code=404, detail="Equipment not found")
+        raise HTTPException(status_code=400, detail="Cannot delete equipment that is in use")
     return success

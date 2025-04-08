@@ -143,8 +143,7 @@
                             <ul class="nav nav-pills">
                                 <li class="nav-item"><a class="nav-link" href="#product-process-settings" data-toggle="tab">제품군/공정 관리</a></li>
                                 <li class="nav-item"><a class="nav-link active" href="#spec-settings" data-toggle="tab">SPEC 설정</a></li>
-                                <li class="nav-item"><a class="nav-link" href="#spc-settings" data-toggle="tab">SPC 규칙 설정</a></li>
-                                <li class="nav-item"><a class="nav-link" href="#report-settings" data-toggle="tab">보고서 설정</a></li>
+                                <li class="nav-item"><a class="nav-link" href="#equipment-settings" data-toggle="tab">장비 관리</a></li>
                             </ul>
                         </div>
                         <div class="card-body">
@@ -300,20 +299,84 @@
                                         </div>
                                     </div>
                                 </div>
-                                
-                                <!-- SPC 규칙 설정 탭 -->
-                                <div class="tab-pane" id="spc-settings">
-                                    <div class="text-center py-5">
-                                        <i class="fas fa-cogs fa-2x text-info mb-3"></i>
-                                        <p>SPC 규칙 설정 기능은 추후 업데이트될 예정입니다.</p>
-                                    </div>
-                                </div>
-                                
-                                <!-- 보고서 설정 탭 -->
-                                <div class="tab-pane" id="report-settings">
-                                    <div class="text-center py-5">
-                                        <i class="fas fa-file-alt fa-2x text-info mb-3"></i>
-                                        <p>보고서 설정 기능은 추후 업데이트될 예정입니다.</p>
+                                <!-- 장비 관리 탭 -->
+                                <div class="tab-pane" id="equipment-settings">
+                                    <div class="row">
+                                        <!-- 장비 타입 관리 영역 -->
+                                        <div class="col-md-5">
+                                            <div class="card">
+                                                <div class="card-header">
+                                                    <h3 class="card-title">장비 타입 관리</h3>
+                                                    <div class="card-tools">
+                                                        <button type="button" class="btn btn-tool" id="add-equipment-type-btn">
+                                                            <i class="fas fa-plus"></i> 새 장비 타입 추가
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <div class="card-body">
+                                                    <div class="table-responsive">
+                                                        <table class="table table-bordered table-striped" id="equipment-type-table">
+                                                            <thead>
+                                                                <tr>
+                                                                    <th>장비 타입</th>
+                                                                    <th>설명</th>
+                                                                    <th>장비 수</th>
+                                                                    <th>작업</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody id="equipment-type-list">
+                                                                <!-- 장비 타입 목록이 여기에 동적으로 추가됩니다 -->
+                                                                <tr>
+                                                                    <td colspan="4" class="text-center">로딩 중...</td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- 장비 관리 영역 -->
+                                        <div class="col-md-7">
+                                            <div class="card">
+                                                <div class="card-header">
+                                                    <h3 class="card-title">장비 관리</h3>
+                                                    <div class="card-tools">
+                                                        <button type="button" class="btn btn-tool" id="add-equipment-btn">
+                                                            <i class="fas fa-plus"></i> 새 장비 추가
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <div class="card-body">
+                                                    <div class="form-group">
+                                                        <label for="equipment-type-filter">장비 타입 선택</label>
+                                                        <select class="form-control" id="equipment-type-filter">
+                                                            <option value="">모든 장비 타입</option>
+                                                            <!-- 장비 타입 옵션이 여기에 동적으로 추가됩니다 -->
+                                                        </select>
+                                                    </div>
+                                                    <div class="table-responsive mt-3">
+                                                        <table class="table table-bordered table-striped" id="equipment-table">
+                                                            <thead>
+                                                                <tr>
+                                                                    <th>장비 이름</th>
+                                                                    <th>장비 타입</th>
+                                                                    <th>설명</th>
+                                                                    <th>상태</th>
+                                                                    <th>작업</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody id="equipment-list">
+                                                                <!-- 장비 목록이 여기에 동적으로 추가됩니다 -->
+                                                                <tr>
+                                                                    <td colspan="5" class="text-center">장비 타입을 선택하세요</td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -548,6 +611,97 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">취소</button>
                     <button type="button" class="btn btn-primary" onclick="document.getElementById('change-password-form').requestSubmit()">변경</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 장비 타입 추가/편집 모달 -->
+    <div class="modal fade" id="equipment-type-modal" tabindex="-1" role="dialog" aria-labelledby="equipment-type-modal-title" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="equipment-type-modal-title">새 장비 타입 추가</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="equipment-type-form">
+                        <input type="hidden" id="equipment-type-id">
+                        <div class="form-group">
+                            <label for="equipment-type-name">장비 타입 이름</label>
+                            <input type="text" class="form-control" id="equipment-type-name" required>
+                            <small class="form-text text-muted">예: 코팅, 노광, 현상 등</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="equipment-type-description">설명</label>
+                            <textarea class="form-control" id="equipment-type-description" rows="2"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="equipment-type-grid">그리드 레이아웃</label>
+                            <div class="row">
+                                <div class="col-6">
+                                    <label for="grid-rows">행 수</label>
+                                    <input type="number" class="form-control" id="grid-rows" min="1" max="4" value="2" required>
+                                </div>
+                                <div class="col-6">
+                                    <label for="grid-columns">열 수</label>
+                                    <input type="number" class="form-control" id="grid-columns" min="1" max="6" value="3" required>
+                                </div>
+                            </div>
+                            <small class="form-text text-muted">데이터 입력 페이지에 표시될 그리드 레이아웃 크기</small>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">취소</button>
+                    <button type="button" class="btn btn-primary" id="save-equipment-type-btn">저장</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 장비 추가/편집 모달 -->
+    <div class="modal fade" id="equipment-modal" tabindex="-1" role="dialog" aria-labelledby="equipment-modal-title" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="equipment-modal-title">새 장비 추가</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="equipment-form">
+                        <input type="hidden" id="equipment-id">
+                        <div class="form-group">
+                            <label for="equipment-name">장비 이름</label>
+                            <input type="text" class="form-control" id="equipment-name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="equipment-type">장비 타입</label>
+                            <select class="form-control" id="equipment-type" required>
+                                <option value="">장비 타입 선택</option>
+                                <!-- 장비 타입 옵션이 여기에 동적으로 추가됩니다 -->
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="equipment-description">설명</label>
+                            <textarea class="form-control" id="equipment-description" rows="2"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <div class="custom-control custom-switch">
+                                <input type="checkbox" class="custom-control-input" id="equipment-active" checked>
+                                <label class="custom-control-label" for="equipment-active">활성화</label>
+                            </div>
+                            <small class="form-text text-muted">비활성화된 장비는 데이터 입력 페이지에 표시되지 않습니다.</small>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">취소</button>
+                    <button type="button" class="btn btn-primary" id="save-equipment-btn">저장</button>
                 </div>
             </div>
         </div>

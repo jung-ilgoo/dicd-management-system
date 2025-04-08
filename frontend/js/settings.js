@@ -992,6 +992,465 @@
         }
     }
 
+    // 장비 타입 관리 초기화
+async function initEquipmentTypeManagement() {
+    // 장비 타입 목록 로드
+    await loadEquipmentTypes();
+    
+    // 이벤트 리스너 설정
+    document.getElementById('add-equipment-type-btn').addEventListener('click', () => {
+        openEquipmentTypeModal();
+    });
+    
+    document.getElementById('save-equipment-type-btn').addEventListener('click', saveEquipmentType);
+    
+    // 장비 타입 필터 변경 이벤트
+    document.getElementById('equipment-type-filter').addEventListener('change', async function() {
+        const typeId = this.value;
+        await loadEquipments(typeId);
+    });
+}
+
+// 장비 타입 목록 로드
+async function loadEquipmentTypes() {
+    try {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/api/equipment-types`);
+        if (!response.ok) {
+            throw new Error('장비 타입 정보를 불러오는 데 실패했습니다.');
+        }
+        
+        const equipmentTypes = await response.json();
+        
+        // 장비 타입 테이블 업데이트
+        updateEquipmentTypeTable(equipmentTypes);
+        
+        // 장비 타입 필터 드롭다운 업데이트
+        updateEquipmentTypeDropdowns(equipmentTypes);
+        
+        return equipmentTypes;
+    } catch (error) {
+        console.error('장비 타입 로드 실패:', error);
+        document.getElementById('equipment-type-list').innerHTML = 
+            '<tr><td colspan="4" class="text-danger">장비 타입 정보를 불러오는 중 오류가 발생했습니다.</td></tr>';
+        return [];
+    }
+}
+
+// 장비 타입 테이블 업데이트
+function updateEquipmentTypeTable(equipmentTypes) {
+    const tableBody = document.getElementById('equipment-type-list');
+    
+    if (!equipmentTypes || equipmentTypes.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="4" class="text-center">등록된 장비 타입이 없습니다.</td></tr>';
+        return;
+    }
+    
+    let html = '';
+    equipmentTypes.forEach(type => {
+        html += `
+        <tr>
+            <td>${type.name}</td>
+            <td>${type.description || ''}</td>
+            <td>${type.equipmentCount || 0}</td>
+            <td>
+                <button class="btn btn-sm btn-info edit-equipment-type-btn" data-id="${type.id}">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn btn-sm btn-danger delete-equipment-type-btn" data-id="${type.id}">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        </tr>
+        `;
+    });
+    
+    tableBody.innerHTML = html;
+    
+    // 편집 버튼 이벤트
+    document.querySelectorAll('.edit-equipment-type-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const typeId = this.dataset.id;
+            const type = equipmentTypes.find(t => t.id == typeId);
+            if (type) {
+                openEquipmentTypeModal(type);
+            }
+        });
+    });
+    
+    // 삭제 버튼 이벤트
+    document.querySelectorAll('.delete-equipment-type-btn').forEach(button => {
+        button.addEventListener('click', async function() {
+            const typeId = this.dataset.id;
+            const type = equipmentTypes.find(t => t.id == typeId);
+            if (type && confirm(`정말 "${type.name}" 장비 타입을 삭제하시겠습니까?`)) {
+                await deleteEquipmentType(typeId);
+            }
+        });
+    });
+}
+
+// 장비 타입 드롭다운 업데이트
+function updateEquipmentTypeDropdowns(equipmentTypes) {
+    const filterDropdown = document.getElementById('equipment-type-filter');
+    const modalDropdown = document.getElementById('equipment-type');
+    
+    // 기존 옵션 제거 (첫 번째 옵션 유지)
+    while (filterDropdown.options.length > 1) {
+        filterDropdown.remove(1);
+    }
+    
+    while (modalDropdown.options.length > 1) {
+        modalDropdown.remove(1);
+    }
+    
+    // 새 옵션 추가
+    equipmentTypes.forEach(type => {
+        // 필터 드롭다운에 추가
+        const filterOption = document.createElement('option');
+        filterOption.value = type.id;
+        filterOption.textContent = type.name;
+        filterDropdown.appendChild(filterOption);
+        
+        // 모달 드롭다운에 추가
+        const modalOption = document.createElement('option');
+        modalOption.value = type.id;
+        modalOption.textContent = type.name;
+        modalDropdown.appendChild(modalOption);
+    });
+}
+
+// 장비 타입 모달 열기
+function openEquipmentTypeModal(type = null) {
+    // 모달 타이틀 설정
+    document.getElementById('equipment-type-modal-title').textContent = 
+        type ? '장비 타입 편집' : '새 장비 타입 추가';
+    
+    // 폼 필드 초기화
+    document.getElementById('equipment-type-id').value = type ? type.id : '';
+    document.getElementById('equipment-type-name').value = type ? type.name : '';
+    document.getElementById('equipment-type-description').value = type ? type.description || '' : '';
+    
+    // 그리드 레이아웃 설정
+    if (type && type.gridLayout) {
+        document.getElementById('grid-rows').value = type.gridLayout.rows || 2;
+        document.getElementById('grid-columns').value = type.gridLayout.columns || 3;
+    } else {
+        document.getElementById('grid-rows').value = 2;
+        document.getElementById('grid-columns').value = 3;
+    }
+    
+    // 모달 표시
+    $('#equipment-type-modal').modal('show');
+}
+
+// 장비 타입 저장
+async function saveEquipmentType() {
+    const typeId = document.getElementById('equipment-type-id').value;
+    const typeName = document.getElementById('equipment-type-name').value;
+    const typeDesc = document.getElementById('equipment-type-description').value;
+    const gridRows = document.getElementById('grid-rows').value;
+    const gridColumns = document.getElementById('grid-columns').value;
+    
+    if (!typeName.trim()) {
+        alert('장비 타입 이름을 입력하세요.');
+        return;
+    }
+    
+    try {
+        const data = {
+            name: typeName,
+            description: typeDesc,
+            gridLayout: {
+                rows: parseInt(gridRows),
+                columns: parseInt(gridColumns)
+            }
+        };
+        
+        let response;
+        if (typeId) {
+            // 기존 장비 타입 수정
+            response = await fetch(`${API_CONFIG.BASE_URL}/api/equipment-types/${typeId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+        } else {
+            // 새 장비 타입 추가
+            response = await fetch(`${API_CONFIG.BASE_URL}/api/equipment-types`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+        }
+        
+        if (!response.ok) {
+            throw new Error('장비 타입 저장에 실패했습니다.');
+        }
+        
+        // 성공 메시지
+        alert(typeId ? '장비 타입이 수정되었습니다.' : '새 장비 타입이 추가되었습니다.');
+        
+        // 모달 닫기
+        $('#equipment-type-modal').modal('hide');
+        
+        // 장비 타입 목록 새로고침
+        await loadEquipmentTypes();
+        
+    } catch (error) {
+        console.error('장비 타입 저장 실패:', error);
+        alert('장비 타입 저장 중 오류가 발생했습니다.');
+    }
+}
+
+// 장비 타입 삭제
+async function deleteEquipmentType(typeId) {
+    try {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/api/equipment-types/${typeId}`, {
+            method: 'DELETE'
+        });
+        
+        if (!response.ok) {
+            throw new Error('장비 타입 삭제에 실패했습니다.');
+        }
+        
+        // 성공 메시지
+        alert('장비 타입이 삭제되었습니다.');
+        
+        // 장비 타입 목록 새로고침
+        await loadEquipmentTypes();
+        
+    } catch (error) {
+        console.error('장비 타입 삭제 실패:', error);
+        alert('장비 타입 삭제 중 오류가 발생했습니다. 해당 타입의 장비가 있는 경우 삭제할 수 없습니다.');
+    }
+}
+
+// 장비 관리 초기화
+async function initEquipmentManagement() {
+    // 장비 목록 로드
+    await loadEquipments();
+    
+    // 이벤트 리스너 설정
+    document.getElementById('add-equipment-btn').addEventListener('click', () => {
+        openEquipmentModal();
+    });
+    
+    document.getElementById('save-equipment-btn').addEventListener('click', saveEquipment);
+}
+
+// 장비 목록 로드
+async function loadEquipments(typeId = '') {
+    try {
+        let url = `${API_CONFIG.BASE_URL}/api/equipments`;
+        if (typeId) {
+            url += `?type=${typeId}`;
+        }
+        
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error('장비 정보를 불러오는 데 실패했습니다.');
+        }
+        
+        const equipments = await response.json();
+        
+        // 장비 테이블 업데이트
+        updateEquipmentTable(equipments);
+        
+        return equipments;
+    } catch (error) {
+        console.error('장비 로드 실패:', error);
+        document.getElementById('equipment-list').innerHTML = 
+            '<tr><td colspan="5" class="text-danger">장비 정보를 불러오는 중 오류가 발생했습니다.</td></tr>';
+        return [];
+    }
+}
+
+// 장비 테이블 업데이트
+function updateEquipmentTable(equipments) {
+    const tableBody = document.getElementById('equipment-list');
+    
+    if (!equipments || equipments.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="5" class="text-center">등록된 장비가 없습니다.</td></tr>';
+        return;
+    }
+    
+    let html = '';
+    equipments.forEach(equipment => {
+        html += `
+        <tr>
+            <td>${equipment.name}</td>
+            <td>${equipment.type}</td>
+            <td>${equipment.description || ''}</td>
+            <td>
+                <span class="badge badge-${equipment.is_active ? 'success' : 'secondary'}">
+                    ${equipment.is_active ? '활성' : '비활성'}
+                </span>
+            </td>
+            <td>
+                <button class="btn btn-sm btn-info edit-equipment-btn" data-id="${equipment.id}">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn btn-sm btn-danger delete-equipment-btn" data-id="${equipment.id}">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        </tr>
+        `;
+    });
+    
+    tableBody.innerHTML = html;
+    
+    // 편집 버튼 이벤트
+    document.querySelectorAll('.edit-equipment-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const equipmentId = this.dataset.id;
+            const equipment = equipments.find(e => e.id == equipmentId);
+            if (equipment) {
+                openEquipmentModal(equipment);
+            }
+        });
+    });
+    
+    // 삭제 버튼 이벤트
+    document.querySelectorAll('.delete-equipment-btn').forEach(button => {
+        button.addEventListener('click', async function() {
+            const equipmentId = this.dataset.id;
+            const equipment = equipments.find(e => e.id == equipmentId);
+            if (equipment && confirm(`정말 "${equipment.name}" 장비를 삭제하시겠습니까?`)) {
+                await deleteEquipment(equipmentId);
+            }
+        });
+    });
+}
+
+// 장비 모달 열기
+function openEquipmentModal(equipment = null) {
+    // 모달 타이틀 설정
+    document.getElementById('equipment-modal-title').textContent = 
+        equipment ? '장비 편집' : '새 장비 추가';
+    
+    // 폼 필드 초기화
+    document.getElementById('equipment-id').value = equipment ? equipment.id : '';
+    document.getElementById('equipment-name').value = equipment ? equipment.name : '';
+    document.getElementById('equipment-description').value = equipment ? equipment.description || '' : '';
+    document.getElementById('equipment-active').checked = equipment ? equipment.is_active : true;
+    
+    // 장비 타입 설정
+    const typeSelect = document.getElementById('equipment-type');
+    if (equipment && equipment.type_id) {
+        typeSelect.value = equipment.type_id;
+    } else {
+        typeSelect.selectedIndex = 0;
+    }
+    
+    // 모달 표시
+    $('#equipment-modal').modal('show');
+}
+
+// 장비 저장
+async function saveEquipment() {
+    const equipmentId = document.getElementById('equipment-id').value;
+    const equipmentName = document.getElementById('equipment-name').value;
+    const equipmentType = document.getElementById('equipment-type').value;
+    const equipmentDesc = document.getElementById('equipment-description').value;
+    const isActive = document.getElementById('equipment-active').checked;
+    
+    if (!equipmentName.trim()) {
+        alert('장비 이름을 입력하세요.');
+        return;
+    }
+    
+    if (!equipmentType) {
+        alert('장비 타입을 선택하세요.');
+        return;
+    }
+    
+    try {
+        const data = {
+            name: equipmentName,
+            type: equipmentType, // 서버에서는 type_id로 처리
+            description: equipmentDesc,
+            is_active: isActive
+        };
+        
+        let response;
+        if (equipmentId) {
+            // 기존 장비 수정
+            response = await fetch(`${API_CONFIG.BASE_URL}/api/equipments/${equipmentId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+        } else {
+            // 새 장비 추가
+            response = await fetch(`${API_CONFIG.BASE_URL}/api/equipments`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+        }
+        
+        if (!response.ok) {
+            throw new Error('장비 저장에 실패했습니다.');
+        }
+        
+        // 성공 메시지
+        alert(equipmentId ? '장비가 수정되었습니다.' : '새 장비가 추가되었습니다.');
+        
+        // 모달 닫기
+        $('#equipment-modal').modal('hide');
+        
+        // 장비 목록 새로고침
+        const typeFilter = document.getElementById('equipment-type-filter').value;
+        await loadEquipments(typeFilter);
+        
+    } catch (error) {
+        console.error('장비 저장 실패:', error);
+        alert('장비 저장 중 오류가 발생했습니다.');
+    }
+}
+
+// 장비 삭제
+async function deleteEquipment(equipmentId) {
+    try {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/api/equipments/${equipmentId}`, {
+            method: 'DELETE'
+        });
+        
+        if (!response.ok) {
+            throw new Error('장비 삭제에 실패했습니다.');
+        }
+        
+        // 성공 메시지
+        alert('장비가 삭제되었습니다.');
+        
+        // 장비 목록 새로고침
+        const typeFilter = document.getElementById('equipment-type-filter').value;
+        await loadEquipments(typeFilter);
+        
+    } catch (error) {
+        console.error('장비 삭제 실패:', error);
+        alert('장비 삭제 중 오류가 발생했습니다.');
+    }
+}
+
+// 페이지 로드 시 장비 관리 초기화 (기존 이벤트 리스너에 추가)
+document.addEventListener('DOMContentLoaded', function() {
+    // 기존 코드...
+    
+    // 장비 관리 초기화
+    initEquipmentTypeManagement();
+    initEquipmentManagement();
+});
+
     // 제품군 및 공정 관리 탭 이벤트 설정
     function setupProductProcessEvents() {
         // 제품군 추가 버튼 클릭 이벤트

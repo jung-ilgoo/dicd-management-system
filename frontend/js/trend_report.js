@@ -197,14 +197,31 @@ class ChartManager {
             new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
         );
         
-        // 시퀀스 기반으로 데이터 포인트 생성 (X축은 인덱스)
+        // 현재 날짜 구하기
+        const now = new Date();
+        // 1주일 전 날짜 계산
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(now.getDate() - 7);
+        
+        // 시퀀스 기반으로 데이터 포인트 생성
         const values = sortedData.map((item, index) => {
+            const itemDate = new Date(item.created_at);
+            const isRecent = itemDate >= oneWeekAgo; // 최근 1주일 데이터인지 확인
+            
             return {
                 x: index,  // 인덱스를 X값으로 사용
                 y: item.avg_value,
-                created_at: item.created_at,  // 날짜 정보 저장
-                lot_no: item.lot_no || '',    // 추가 정보 저장 (있는 경우)
-                wafer_no: item.wafer_no || ''
+                created_at: item.created_at,
+                lot_no: item.lot_no || '',
+                wafer_no: item.wafer_no || '',
+                // 최근 1주일 데이터는 스타일 속성 추가
+                pointRadius: isRecent ? 3 : 2,       // 최근 데이터는 큰 점, 이전 데이터는 작은 점
+                pointBackgroundColor: isRecent ? 'rgba(52, 144, 220, 1)' : 'rgba(52, 144, 220, 0.5)',
+                pointBorderColor: isRecent ? 'rgba(52, 144, 220, 1)' : 'rgba(52, 144, 220, 0.5)',
+                pointHoverRadius: isRecent ? 6 : 4,
+                // 선 스타일도 조정
+                borderWidth: isRecent ? 3 : 1.5,
+                borderColor: isRecent ? 'rgba(52, 144, 220, 1)' : 'rgba(52, 144, 220, 0.5)'
             };
         });
         
@@ -213,18 +230,40 @@ class ChartManager {
                 {
                     label: '측정값',
                     data: values,
-                    borderColor: this.chartColors[0],
+                    borderColor: 'rgba(52, 144, 220, 0.5)', // 기본 선 색상
                     backgroundColor: 'rgba(52, 144, 220, 0.1)',
-                    borderWidth: 2,
-                    pointRadius: 3,
-                    pointHoverRadius: 5,
+                    borderWidth: 1.5, // 기본 선 두께
+                    // 각 데이터 포인트마다 다른 스타일 적용을 위한 설정
+                    pointRadius: values.map(v => v.pointRadius),
+                    pointBackgroundColor: values.map(v => v.pointBackgroundColor),
+                    pointBorderColor: values.map(v => v.pointBorderColor),
+                    pointHoverRadius: values.map(v => v.pointHoverRadius),
+                    // 선 스타일에 segment 옵션 사용
+                    segment: {
+                        borderColor: ctx => {
+                            // 이 부분은 Chart.js의 segment 옵션을 사용하여 
+                            // 현재 데이터 포인트의 borderColor 속성에 접근합니다
+                            if (ctx.p1.raw && ctx.p1.raw.borderColor) {
+                                return ctx.p1.raw.borderColor;
+                            }
+                            return 'rgba(52, 144, 220, 0.5)'; // 기본값
+                        },
+                        borderWidth: ctx => {
+                            // 이 부분은 Chart.js의 segment 옵션을 사용하여 
+                            // 현재 데이터 포인트의 borderWidth 속성에 접근합니다
+                            if (ctx.p1.raw && ctx.p1.raw.borderWidth) {
+                                return ctx.p1.raw.borderWidth;
+                            }
+                            return 1.5; // 기본값
+                        }
+                    },
                     fill: false,
                     tension: 0.1
                 }
             ]
         };
         
-        // SPEC 라인 추가
+        // SPEC 라인 추가 코드는 그대로 유지
         if (specData) {
             const xMin = 0;
             const xMax = values.length - 1;

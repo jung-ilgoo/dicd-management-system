@@ -64,7 +64,7 @@ class Spec(Base):
     # 관계 설정
     target = relationship("Target", back_populates="specs")
 
-# Equipment 클래스 수정
+# Equipment 클래스 (models.py 파일에 있는 기존 코드 확인)
 class Equipment(Base):
     __tablename__ = "equipments"
 
@@ -76,10 +76,7 @@ class Equipment(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
-    # 관계 설정 제거
-    # measurements = relationship("Measurement", back_populates="equipment")  # 이 부분 제거
-    
-    # 새로운 관계 설정
+    # 관계 설정
     coating_measurements = relationship("Measurement", foreign_keys="Measurement.coating_equipment_id", back_populates="coating_equipment")
     exposure_measurements = relationship("Measurement", foreign_keys="Measurement.exposure_equipment_id", back_populates="exposure_equipment")
     development_measurements = relationship("Measurement", foreign_keys="Measurement.development_equipment_id", back_populates="development_equipment")

@@ -430,19 +430,25 @@ def delete_spec(db: Session, spec_id: int):
         return True
     return False
 
-# 장비 CRUD 함수
+# 장비 CRUD 함수 (crud.py 파일에 추가)
 def get_equipments(db: Session, type: str = None, skip: int = 0, limit: int = 100):
+    """장비 목록 조회 (타입별 필터링 가능)"""
     query = db.query(models.Equipment)
-    
     if type:
         query = query.filter(models.Equipment.type == type)
-    
     return query.offset(skip).limit(limit).all()
 
 def get_equipment(db: Session, equipment_id: int):
+    """ID로 장비 조회"""
     return db.query(models.Equipment).filter(models.Equipment.id == equipment_id).first()
 
 def create_equipment(db: Session, equipment: equipment.EquipmentCreate):
+    """장비 생성"""
+    # 타입 유효성 검사
+    valid_types = ['코팅', '노광', '현상']
+    if equipment.type not in valid_types:
+        raise ValueError(f"Invalid equipment type. Must be one of: {', '.join(valid_types)}")
+    
     db_equipment = models.Equipment(
         name=equipment.name,
         type=equipment.type,
@@ -455,20 +461,38 @@ def create_equipment(db: Session, equipment: equipment.EquipmentCreate):
     return db_equipment
 
 def update_equipment(db: Session, equipment_id: int, equipment: equipment.EquipmentCreate):
-    db_equipment = db.query(models.Equipment).filter(models.Equipment.id == equipment_id).first()
+    """장비 수정"""
+    db_equipment = get_equipment(db, equipment_id=equipment_id)
     
     if db_equipment:
-        for key, value in equipment.dict(exclude_unset=True).items():
-            setattr(db_equipment, key, value)
+        # 타입 유효성 검사
+        valid_types = ['코팅', '노광', '현상']
+        if equipment.type not in valid_types:
+            raise ValueError(f"Invalid equipment type. Must be one of: {', '.join(valid_types)}")
+        
+        db_equipment.name = equipment.name
+        db_equipment.type = equipment.type
+        db_equipment.description = equipment.description
+        db_equipment.is_active = equipment.is_active
         
         db.commit()
         db.refresh(db_equipment)
-    
     return db_equipment
 
 def delete_equipment(db: Session, equipment_id: int):
-    db_equipment = db.query(models.Equipment).filter(models.Equipment.id == equipment_id).first()
+    """장비 삭제"""
+    db_equipment = get_equipment(db, equipment_id=equipment_id)
     if db_equipment:
+        # 측정 데이터에서 참조 중인지 확인
+        measurements_count = db.query(models.Measurement).filter(
+            (models.Measurement.coating_equipment_id == equipment_id) |
+            (models.Measurement.exposure_equipment_id == equipment_id) |
+            (models.Measurement.development_equipment_id == equipment_id)
+        ).count()
+        
+        if measurements_count > 0:
+            return False  # 측정 데이터가 참조 중이면 삭제 불가
+        
         db.delete(db_equipment)
         db.commit()
         return True
