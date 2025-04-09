@@ -1009,7 +1009,7 @@ async function initEquipmentManagement() {
 async function loadEquipments(typeId = '') {
     try {
         // 타입 필터 제거 - 모든 장비 가져오기
-        let url = `${API_CONFIG.BASE_URL}/api/equipments`;
+        let url = `${API_CONFIG.BASE_URL}/equipments`;
         
         const response = await fetch(url);
         if (!response.ok) {
@@ -1141,7 +1141,7 @@ async function saveEquipment() {
         let response;
         if (equipmentId) {
             // 기존 장비 수정
-            response = await fetch(`${API_CONFIG.BASE_URL}/api/equipments/${equipmentId}`, {
+            response = await fetch(`${API_CONFIG.BASE_URL}/equipments/${equipmentId}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json'
@@ -1150,7 +1150,7 @@ async function saveEquipment() {
             });
         } else {
             // 새 장비 추가
-            response = await fetch(`${API_CONFIG.BASE_URL}/api/equipments`, {
+            response = await fetch(`${API_CONFIG.BASE_URL}/equipments`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -1181,7 +1181,7 @@ async function saveEquipment() {
 // 장비 삭제
 async function deleteEquipment(equipmentId) {
     try {
-        const response = await fetch(`${API_CONFIG.BASE_URL}/api/equipments/${equipmentId}`, {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/equipments/${equipmentId}`, {
             method: 'DELETE'
         });
         

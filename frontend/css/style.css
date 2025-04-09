@@ -48,7 +48,34 @@
     border: 1px solid #dee2e6;
     border-radius: 0.25rem;
     padding: 6px;
-    height: 100px; /* 전체 높이 조정 */
+    grid-auto-rows: 40px !important; /* 모든 행의 높이를 40px로 강제 설정 */
+}
+
+/* 장비 버튼 스타일 */
+.equipment-btn {
+    font-size: 0.85rem;
+    padding: 0.5rem 0.25rem !important;
+    white-space: normal;
+    height: 40px !important; /* 버튼 높이 강제 고정 */
+    max-height: 40px !important; /* 최대 높이도 제한 */
+    min-height: 40px !important; /* 최소 높이도 고정 */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    line-height: 1.2;
+    margin: 0 !important;
+    border-width: 1px !important;
+    overflow: hidden; /* 내용이 넘치면 숨김 */
+}
+
+/* 빈 셀 스타일 */
+.empty-cell {
+    border: 1px dashed #dee2e6;
+    border-radius: 0.25rem;
+    height: 40px !important; /* 높이 강제 고정 */
+    min-height: 40px !important;
+    max-height: 40px !important;
 }
 
 /* 코팅 장비 (2x4 그리드) */
@@ -515,4 +542,23 @@ input[type=number]::-webkit-outer-spin-button {
 .spec-exceeded {
     border: 2px solid #dc3545 !important;
     background-color: #fff8f8 !important;
+}
+
+/* frontend/css/style.css에 추가 */
+.dynamic-equipment-grid .empty-cell {
+    border: 1px dashed #dee2e6;
+    border-radius: 0.25rem;
+    background-color: #f8f9fa;
+}
+
+.dynamic-equipment-grid .equipment-btn {
+    font-size: 0.85rem;
+    padding: 0.25rem 0.5rem;
+    white-space: normal;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    line-height: 1.2;
 }
