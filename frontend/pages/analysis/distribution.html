@@ -306,14 +306,28 @@
                                 
                                 <!-- 정규 확률도 (QQ Plot) -->
                                 <div class="row mt-4">
+                                    <!-- QQ Plot 섹션 수정 - distribution.html 파일의 기존 QQ Plot 부분 대체 -->
+                                    <!-- 정규 확률도 (QQ Plot) -->
                                     <div class="col-md-6">
                                         <div class="card card-info card-outline">
                                             <div class="card-header">
                                                 <h3 class="card-title">정규 확률도 (QQ Plot)</h3>
+                                                <div class="card-tools">
+                                                    <button type="button" class="btn btn-tool" data-card-widget="collapse">
+                                                        <i class="fas fa-minus"></i>
+                                                    </button>
+                                                </div>
                                             </div>
                                             <div class="card-body">
                                                 <div class="qq-plot-container" style="height: 300px;">
                                                     <canvas id="qq-plot"></canvas>
+                                                </div>
+                                                <div class="mt-2 small">
+                                                    <p class="mb-1"><strong>정규성 평가:</strong> <span id="normality-test">-</span></p>
+                                                    <p class="text-muted mb-0">
+                                                        <i class="fas fa-info-circle mr-1"></i> 
+                                                        점들이 빨간색 선에 가까울수록 정규분포에 가까운 데이터입니다.
+                                                    </p>
                                                 </div>
                                             </div>
                                         </div>

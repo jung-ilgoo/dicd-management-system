@@ -250,56 +250,19 @@
     // 장비 목록 로드
     async function loadEquipments() {
         try {
-            console.log("장비 목록 불러오기 시작");
-            
             // DOM에 장비 컨테이너가 존재하는지 확인
             const coatingContainer = document.getElementById('coating-equipment-buttons');
             const exposureContainer = document.getElementById('exposure-equipment-buttons');
             const developmentContainer = document.getElementById('development-equipment-buttons');
             
-            console.log("컨테이너 확인:", 
-                "coating=", !!coatingContainer, 
-                "exposure=", !!exposureContainer, 
-                "development=", !!developmentContainer);
-            
             // API 호출
             const response = await fetch(`${API_CONFIG.BASE_URL}/equipments`);
-            console.log("API 응답 상태:", response.status);
             
             let equipments = [];
             if (response.ok) {
                 equipments = await response.json();
-                console.log("받은 장비 목록:", equipments);
-            }
-            
-            // 테스트 데이터 (API 호출 실패 또는 빈 결과일 경우)
-            if (!equipments || equipments.length === 0) {
-                equipments = [
-                    // 코팅 장비 9개
-                    { id: 1, name: "코팅장비 1", type: "코팅", is_active: true },
-                    { id: 2, name: "코팅장비 2", type: "코팅", is_active: true },
-                    { id: 3, name: "코팅장비 3", type: "코팅", is_active: true },
-                    { id: 4, name: "코팅장비 4", type: "코팅", is_active: true },
-                    { id: 5, name: "코팅장비 5", type: "코팅", is_active: true },
-                    { id: 6, name: "코팅장비 6", type: "코팅", is_active: true },
-                    { id: 7, name: "코팅장비 7", type: "코팅", is_active: true },
-                    { id: 8, name: "코팅장비 8", type: "코팅", is_active: true },
-                    { id: 9, name: "코팅장비 9", type: "코팅", is_active: true },
-                    
-                    // 노광 장비 6개
-                    { id: 10, name: "노광장비 1", type: "노광", is_active: true },
-                    { id: 11, name: "노광장비 2", type: "노광", is_active: true },
-                    { id: 12, name: "노광장비 3", type: "노광", is_active: true },
-                    { id: 13, name: "노광장비 4", type: "노광", is_active: true },
-                    { id: 14, name: "노광장비 5", type: "노광", is_active: true },
-                    { id: 15, name: "노광장비 6", type: "노광", is_active: true },
-                    
-                    // 현상 장비 4개
-                    { id: 16, name: "현상장비 1", type: "현상", is_active: true },
-                    { id: 17, name: "현상장비 2", type: "현상", is_active: true },
-                    { id: 18, name: "현상장비 3", type: "현상", is_active: true },
-                    { id: 19, name: "현상장비 4", type: "현상", is_active: true }
-                ];
+            } else {
+                throw new Error('장비 정보를 가져오는데 실패했습니다.');
             }
             
             // 활성화된 장비만 필터링
@@ -308,31 +271,35 @@
             // 코팅 장비 처리
             if (coatingContainer) {
                 const coatingEquipments = activeEquipments.filter(eq => eq.type === "코팅");
-                console.log("코팅 장비 수:", coatingEquipments.length);
                 renderEquipmentGrid(coatingContainer, coatingEquipments);
             }
             
             // 노광 장비 처리
             if (exposureContainer) {
                 const exposureEquipments = activeEquipments.filter(eq => eq.type === "노광");
-                console.log("노광 장비 수:", exposureEquipments.length);
                 renderEquipmentGrid(exposureContainer, exposureEquipments);
             }
             
             // 현상 장비 처리
             if (developmentContainer) {
                 const developmentEquipments = activeEquipments.filter(eq => eq.type === "현상");
-                console.log("현상 장비 수:", developmentEquipments.length);
                 renderEquipmentGrid(developmentContainer, developmentEquipments);
             }
             
         } catch (error) {
             console.error("장비 목록 로드 실패:", error);
+            
+            // 오류 발생 시 빈 컨테이너 처리
+            if (coatingContainer) renderEquipmentGrid(coatingContainer, []);
+            if (exposureContainer) renderEquipmentGrid(exposureContainer, []);
+            if (developmentContainer) renderEquipmentGrid(developmentContainer, []);
         }
     }
 
-    // 장비 그리드 렌더링 (간소화된 버전)
+// 장비 그리드 렌더링 함수 (개선된 버전)
     function renderEquipmentGrid(container, equipments) {
+        if (!container) return;
+        
         // 컨테이너 초기화
         container.innerHTML = '';
         
@@ -341,17 +308,15 @@
             return;
         }
         
-        // 그리드 레이아웃 설정 - 모든 장비가 표시되도록 계산
-        const count = equipments.length;
-        
         // 열 수 계산 (장비 수에 따라 조정)
+        const count = equipments.length;
         let cols = 4; // 기본 4열
+        
         if (count <= 4) cols = 2;
         else if (count <= 6) cols = 3;
-        else cols = 4;
         
         // 행 수 계산
-        let rows = Math.ceil(count / cols);
+        const rows = Math.ceil(count / cols);
         
         // 그리드 스타일 설정
         container.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
@@ -363,7 +328,7 @@
             button.type = 'button';
             button.className = 'btn btn-outline-primary equipment-btn';
             button.dataset.type = equipment.type === "코팅" ? "coating" : 
-                                equipment.type === "노광" ? "exposure" : "development";
+                            equipment.type === "노광" ? "exposure" : "development";
             button.dataset.id = equipment.id;
             button.textContent = equipment.name;
             
@@ -397,163 +362,6 @@
         });
     }
 
-    // 새로운 장비 타입 컨테이너 생성
-    function createEquipmentContainer(type) {
-        // 장비 선택 섹션의 부모 요소
-        const equipmentSection = document.querySelector('.card-body .row');
-        
-        if (!equipmentSection) return;
-        
-        // 새 컬럼 생성
-        const column = document.createElement('div');
-        column.className = 'col-md-4';
-        column.innerHTML = `
-            <div class="form-group">
-                <label class="d-block text-center mb-2">${type.name} 장비</label>
-                <div id="${type.name.toLowerCase()}-equipment-buttons" class="equipment-grid ${type.name.toLowerCase()}-grid">
-                    <!-- ${type.name} 장비 버튼이 여기에 동적으로 추가됩니다 -->
-                </div>
-                <input type="hidden" id="${type.name.toLowerCase()}-equipment" name="${type.name.toLowerCase()}_equipment_id">
-            </div>
-        `;
-        
-        // 섹션에 컬럼 추가
-        equipmentSection.appendChild(column);
-        
-        
-        // 그리드 업데이트
-        const container = document.getElementById(`${type.name.toLowerCase()}-equipment-buttons`);
-        const activeEquipments = []; // 초기 상태는 빈 배열
-        updateEquipmentGrid(container, type, activeEquipments);
-    }
-
-
-    // 장비 그리드 업데이트
-function updateEquipmentGrid(container, type, equipments) {
-    if (!container) return;
-    
-    console.log(`${type.name} 장비 그리드 업데이트:`, equipments.length);
-    
-    // 컨테이너 초기화 및 스타일 설정
-    container.innerHTML = '';
-    container.style.display = 'grid';
-    
-    // 장비가 없는 경우
-    if (!equipments || equipments.length === 0) {
-        container.innerHTML = '<div class="empty-cell">장비 없음</div>';
-        container.style.gridTemplateColumns = '1fr';
-        container.style.gridTemplateRows = '1fr';
-        return;
-    }
-    
-    // 열 개수 계산 (다양한 장비 수에 맞게 조정)
-    let columns = 4;
-    if (equipments.length <= 2) columns = 2;
-    else if (equipments.length <= 6) columns = 3;
-    else columns = 4;
-    
-    // 행 개수 계산
-    let rows = Math.ceil(equipments.length / columns);
-    
-    // 그리드 템플릿 설정
-    container.style.gridTemplateColumns = `repeat(${columns}, 1fr)`;
-    container.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
-    
-    // 장비 버튼 추가
-    equipments.forEach(equipment => {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'btn btn-outline-primary equipment-btn';
-        button.dataset.type = type.name.toLowerCase();
-        button.dataset.id = equipment.id;
-        button.textContent = equipment.name;
-        
-        container.appendChild(button);
-    });
-    
-    // 빈 셀 추가 (그리드를 채우기 위함)
-    const totalCells = rows * columns;
-    for (let i = equipments.length; i < totalCells; i++) {
-        const emptyCell = document.createElement('div');
-        emptyCell.className = 'empty-cell';
-        container.appendChild(emptyCell);
-    }
-    
-    // 장비 버튼 클릭 이벤트 추가
-    addEquipmentButtonEvents(container);
-}
-
-// 장비 개수에 따른 최적 그리드 크기 계산
-function calculateOptimalGrid(count, typeName) {
-    // 기본값 설정
-    let rows = 2;
-    let cols = 3;
-    
-    // 장비 타입별 기본 레이아웃 (fallback용)
-    const defaultLayouts = {
-        'coating': { rows: 2, cols: 4 },
-        'exposure': { rows: 2, cols: 3 },
-        'development': { rows: 2, cols: 2 }
-    };
-    
-    if (count <= 0) {
-        // 장비가 없는 경우 기본 레이아웃 사용
-        if (defaultLayouts[typeName]) {
-            return defaultLayouts[typeName];
-        }
-        return { rows, cols };
-    }
-    
-    // 장비 개수에 따른 최적 레이아웃 계산
-    if (count <= 3) {
-        rows = 1;
-        cols = Math.max(2, count);
-    } else if (count <= 4) {
-        rows = 2;
-        cols = 2;
-    } else if (count <= 6) {
-        rows = 2;
-        cols = 3;
-    } else if (count <= 8) {
-        rows = 2;
-        cols = 4;
-    } else {
-        // 8개 초과 시 행과 열 모두 필요에 따라 계산
-        cols = 4; // 열은 최대 4개로 고정
-        rows = Math.ceil(count / cols); // 행 수는 장비 개수에 따라 계산
-    }
-    
-    return { rows, cols };
-}
-
-// 그리드 스타일 동적 업데이트
-function updateGridCSS(container, rows, cols) {
-    // 컨테이너에 직접 스타일 적용
-    container.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
-    container.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-}
-
-    // 장비 버튼 이벤트 추가
-    function addEquipmentButtonEvents(container) {
-        if (!container) return;
-        
-        // 장비 버튼 클릭 이벤트 추가
-        container.querySelectorAll('.equipment-btn').forEach(button => {
-            button.addEventListener('click', function() {
-                // 같은 타입의 다른 버튼들 비활성화
-                const type = this.dataset.type;
-                container.querySelectorAll(`.equipment-btn[data-type="${type}"]`).forEach(btn => {
-                    btn.classList.remove('active');
-                });
-                
-                // 현재 버튼 활성화
-                this.classList.add('active');
-                
-                // 해당 타입의 hidden input에 ID 설정
-                document.getElementById(`${type}-equipment`).value = this.dataset.id;
-            });
-        });
-    }
     
     // 측정값 검사
     function validateMeasurementValues() {

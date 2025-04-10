@@ -854,20 +854,16 @@ const DASHBOARD_UTILS = {
     }
 };
 
-// SPC 분석 페이지로 이동하는 함수
 function navigateToSpcPage(targetId, productGroup, process, targetName) {
-    // 로컬 스토리지에 선택한 타겟 정보 저장 (SPC 페이지에서 사용)
-    const targetInfo = {
-        targetId: targetId,
-        productGroup: productGroup,
-        process: process,
-        targetName: targetName
-    };
+    // URL 인코딩
+    const params = new URLSearchParams();
+    params.set('targetId', targetId);
+    params.set('productGroup', encodeURIComponent(productGroup));
+    params.set('process', encodeURIComponent(process));
+    params.set('targetName', encodeURIComponent(targetName));
     
-    localStorage.setItem('selected_target_for_spc', JSON.stringify(targetInfo));
-    
-    // SPC 분석 페이지로 이동
-    window.location.href = 'pages/analysis/spc.html';
+    // SPC 분석 페이지로 이동 (URL 파라미터 사용)
+    window.location.href = `pages/analysis/spc.html?${params.toString()}`;
 }
 
 // 알림 대시보드 관련 함수들
@@ -931,10 +927,18 @@ async function loadNotificationsDashboard() {
                         </h5>
                         <small class="text-muted">${formattedDate}</small>
                     </div>
-                    <div class="d-flex align-items-center">
-                        <p class="mb-0 flex-grow-1 mr-2">${notification.message.length > 150 ? notification.message.substring(0, 150) + '...' : notification.message}</p>
-                        <div class="d-flex">
-                            <button class="btn btn-sm btn-outline-secondary view-notification-btn mr-1" data-id="${notification.id}">
+                    <div class="mb-2">
+                        <p class="mb-0">${notification.message.length > 150 ? notification.message.substring(0, 150) + '...' : notification.message}</p>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        ${!notification.is_read ? `
+                        <button class="btn btn-sm btn-outline-success mark-read-inline-btn" data-id="${notification.id}">
+                            <i class="fas fa-check-circle mr-1"></i> 읽음으로 표시
+                        </button>
+                        ` : `<span class="badge badge-light"><i class="fas fa-check mr-1"></i> 읽음</span>`}
+                        
+                        <div class="btn-group">
+                            <button class="btn btn-sm btn-outline-secondary view-notification-btn" data-id="${notification.id}">
                                 <i class="fas fa-eye mr-1"></i> 상세 보기
                             </button>
                             ${isSpcViolation && notification.target_id ? `
@@ -969,6 +973,33 @@ async function loadNotificationsDashboard() {
 
 // 이벤트 리스너 추가
 function setupNotificationDashboardListeners() {
+    // setupNotificationDashboardListeners 함수 내 추가
+    // 인라인 읽음 표시 버튼
+    document.querySelectorAll('.mark-read-inline-btn').forEach(btn => {
+        btn.addEventListener('click', async function(e) {
+            e.stopPropagation(); // 클릭 이벤트 전파 방지
+            
+            const notificationId = this.dataset.id;
+            try {
+                // 버튼 비활성화 및 로딩 상태 표시
+                this.disabled = true;
+                this.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> 처리 중...';
+                
+                // API 호출로 읽음 표시
+                await api.markNotificationAsRead(notificationId);
+                
+                // 알림 대시보드 새로고침
+                loadNotificationsDashboard();
+            } catch (error) {
+                console.error('알림 읽음 표시 실패:', error);
+                this.disabled = false;
+                this.innerHTML = '<i class="fas fa-exclamation-circle mr-1"></i> 오류 발생';
+                
+                // 실패 안내
+                alert('알림을 읽음으로 표시하는 중 오류가 발생했습니다. 다시 시도해주세요.');
+            }
+        });
+    });
     // 상세 보기 버튼
     document.querySelectorAll('.view-notification-btn').forEach(btn => {
         btn.addEventListener('click', async function() {
@@ -987,6 +1018,10 @@ function setupNotificationDashboardListeners() {
         btn.addEventListener('click', async function() {
             const targetId = this.dataset.targetId;
             try {
+                // 버튼 상태 업데이트
+                this.disabled = true;
+                this.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> 로딩 중...';
+                
                 // 타겟 정보 가져오기
                 const target = await api.get(`${API_CONFIG.ENDPOINTS.TARGETS}/${targetId}`);
                 // 공정 정보 가져오기
@@ -994,20 +1029,21 @@ function setupNotificationDashboardListeners() {
                 // 제품군 정보 가져오기
                 const productGroup = await api.get(`${API_CONFIG.ENDPOINTS.PRODUCT_GROUPS}/${process.product_group_id}`);
                 
-                // SPC 분석 페이지로 이동하기 위한 정보 저장
-                const targetInfo = {
-                    targetId: targetId,
-                    productGroup: productGroup.name,
-                    process: process.name,
-                    targetName: target.name
-                };
-                
-                localStorage.setItem('selected_target_for_spc', JSON.stringify(targetInfo));
+                // URL 파라미터로 정보 전달
+                const params = new URLSearchParams();
+                params.set('targetId', targetId);
+                params.set('productGroup', encodeURIComponent(productGroup.name));
+                params.set('process', encodeURIComponent(process.name));
+                params.set('targetName', encodeURIComponent(target.name));
                 
                 // SPC 분석 페이지로 이동
-                window.location.href = 'pages/analysis/spc.html';
+                window.location.href = `pages/analysis/spc.html?${params.toString()}`;
+                
             } catch (error) {
                 console.error('타겟 정보 로드 실패:', error);
+                // 버튼 상태 복원
+                this.disabled = false;
+                this.innerHTML = '<i class="fas fa-chart-line mr-1"></i> SPC 분석';
                 alert('SPC 분석 페이지로 이동하는 중 오류가 발생했습니다.');
             }
         });

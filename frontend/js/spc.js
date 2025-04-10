@@ -24,60 +24,87 @@
         // 이벤트 리스너 설정
         setupEventListeners();
         
-        // 대시보드에서 전달된 타겟 정보가 있는지 확인
-        const targetInfoJson = localStorage.getItem('selected_target_for_spc');
-        if (targetInfoJson) {
-            try {
-                const targetInfo = JSON.parse(targetInfoJson);
-                
-                console.log('대시보드에서 전달된 타겟 정보:', targetInfo);
-                
-                // 제품군 선택
-                const productGroupSelect = document.getElementById('product-group');
-                for (let i = 0; i < productGroupSelect.options.length; i++) {
-                    if (productGroupSelect.options[i].text === targetInfo.productGroup) {
-                        productGroupSelect.selectedIndex = i;
-                        selectedProductGroupId = productGroupSelect.value;
-                        break;
-                    }
-                }
-                
-                // 공정 목록 로드 후 선택
-                if (selectedProductGroupId) {
-                    await loadProcesses(selectedProductGroupId);
-                    const processSelect = document.getElementById('process');
-                    for (let i = 0; i < processSelect.options.length; i++) {
-                        if (processSelect.options[i].text === targetInfo.process) {
-                            processSelect.selectedIndex = i;
-                            selectedProcessId = processSelect.value;
-                            break;
-                        }
-                    }
-                }
-                
-                // 타겟 목록 로드 후 선택
-                if (selectedProcessId) {
-                    await loadTargets(selectedProcessId);
-                    const targetSelect = document.getElementById('target');
-                    for (let i = 0; i < targetSelect.options.length; i++) {
-                        if (targetSelect.options[i].text === targetInfo.targetName) {
-                            targetSelect.selectedIndex = i;
-                            selectedTargetId = targetSelect.value;
-                            break;
-                        }
-                    }
-                }
-                
-                // 타겟이 선택되었으면 SPC 분석 실행
-                if (selectedTargetId) {
-                    analyzeSpc();
+        // URL 파라미터에서 타겟 정보 확인
+        const urlParams = new URLSearchParams(window.location.search);
+        let targetInfo = null;
+
+        if (urlParams.has('targetId')) {
+            targetInfo = {
+                targetId: urlParams.get('targetId'),
+                productGroup: decodeURIComponent(urlParams.get('productGroup') || ''),
+                process: decodeURIComponent(urlParams.get('process') || ''),
+                targetName: decodeURIComponent(urlParams.get('targetName') || '')
+            };
+        } else {
+            // 하위 호환성 유지: URL 파라미터가 없으면 localStorage 확인
+            const targetInfoJson = localStorage.getItem('selected_target_for_spc');
+            if (targetInfoJson) {
+                try {
+                    targetInfo = JSON.parse(targetInfoJson);
                     
                     // 사용 후 로컬 스토리지에서 제거
                     localStorage.removeItem('selected_target_for_spc');
+                } catch (error) {
+                    console.error('타겟 정보 파싱 오류:', error);
+                    localStorage.removeItem('selected_target_for_spc');
                 }
-            } catch (error) {
-                console.error('타겟 정보 파싱 오류:', error);
-                localStorage.removeItem('selected_target_for_spc');
+            }
+        }
+
+        // 타겟 정보가 있으면 처리
+        if (targetInfo) {
+            console.log('전달된 타겟 정보:', targetInfo);
+            
+            // 제품군 선택
+            const productGroupSelect = document.getElementById('product-group');
+            for (let i = 0; i < productGroupSelect.options.length; i++) {
+                if (productGroupSelect.options[i].text === targetInfo.productGroup) {
+                    productGroupSelect.selectedIndex = i;
+                    selectedProductGroupId = productGroupSelect.value;
+                    break;
+                }
+            }
+            
+            // 공정 목록 로드 후 선택
+            if (selectedProductGroupId) {
+                await loadProcesses(selectedProductGroupId);
+                const processSelect = document.getElementById('process');
+                for (let i = 0; i < processSelect.options.length; i++) {
+                    if (processSelect.options[i].text === targetInfo.process) {
+                        processSelect.selectedIndex = i;
+                        selectedProcessId = processSelect.value;
+                        break;
+                    }
+                }
+            }
+            
+            // 타겟 목록 로드 후 선택
+            if (selectedProcessId) {
+                await loadTargets(selectedProcessId);
+                const targetSelect = document.getElementById('target');
+                for (let i = 0; i < targetSelect.options.length; i++) {
+                    if (targetSelect.options[i].text === targetInfo.targetName) {
+                        targetSelect.selectedIndex = i;
+                        selectedTargetId = targetSelect.value;
+                        break;
+                    }
+                }
+            }
+            
+            // 타겟 ID가 직접 제공된 경우에는 직접 설정
+            if (!selectedTargetId && targetInfo.targetId) {
+                selectedTargetId = targetInfo.targetId;
+            }
+            
+            // 타겟이 선택되었으면 SPC 분석 실행
+            if (selectedTargetId) {
+                analyzeSpc();
+                
+                // URL에서 파라미터 제거 (페이지 새로고침 시 중복 로드 방지)
+                const cleanUrl = window.location.protocol + "//" + 
+                                window.location.host + 
+                                window.location.pathname;
+                window.history.replaceState({}, document.title, cleanUrl);
             }
         }
     }

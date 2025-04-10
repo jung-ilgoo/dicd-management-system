@@ -439,7 +439,7 @@ function renderDistributionChart(data) {
     });
 }
 
-// 정규 확률도(QQ Plot) 렌더링 함수
+// 정규 확률도(QQ Plot) 렌더링 함수 - 간소화 버전
 function renderQQPlot(data) {
     const ctx = document.getElementById('qq-plot').getContext('2d');
     
@@ -452,22 +452,21 @@ function renderQQPlot(data) {
     const values = [...data.values].sort((a, b) => a - b);
     const n = values.length;
     
-    // 정규 분위수 계산 (근사화)
-    const qqData = values.map((value, i) => {
+    // 간단한 방법으로 QQ 플롯 데이터 계산
+    const qqData = [];
+    for (let i = 0; i < n; i++) {
         // 누적확률 계산: (i + 0.5) / n
         const p = (i + 0.5) / n;
         
-        // 표준정규분포의 역함수 (근사화)
-        // 출처: Abramowitz and Stegun (1964) 공식 26.2.23
+        // 정규분포 역함수 간단 근사 (Box-Muller 변환의 간소화 버전)
+        // 실제 정밀한 계산이 필요하면 더 정확한 방법을 사용해야 함
         let z;
         if (p <= 0.5) {
-            const t = Math.sqrt(-2 * Math.log(p));
-            z = -(2.515517 + 0.802853 * t + 0.010328 * t * t) / 
-                (1 + 1.432788 * t + 0.189269 * t * t + 0.001308 * t * t * t);
+            // 0.5 이하일 때는 음수 영역
+            z = -Math.sqrt(2) * Math.sqrt(-Math.log(p));
         } else {
-            const t = Math.sqrt(-2 * Math.log(1 - p));
-            z = (2.515517 + 0.802853 * t + 0.010328 * t * t) / 
-                (1 + 1.432788 * t + 0.189269 * t * t + 0.001308 * t * t * t);
+            // 0.5 이상일 때는 양수 영역
+            z = Math.sqrt(2) * Math.sqrt(-Math.log(1 - p));
         }
         
         // 평균과 표준편차 적용
@@ -475,10 +474,10 @@ function renderQQPlot(data) {
         const stdDev = data.distribution_stats.std_dev;
         const theoreticalQuantile = mean + z * stdDev;
         
-        return { x: theoreticalQuantile, y: value };
-    });
+        qqData.push({ x: theoreticalQuantile, y: values[i] });
+    }
     
-    // 이상적인 라인을 위한 데이터 포인트 계산
+    // 이상적인 라인을 위한 데이터 포인트 계산 (간소화)
     const minValue = Math.min(...values);
     const maxValue = Math.max(...values);
     const lineData = [

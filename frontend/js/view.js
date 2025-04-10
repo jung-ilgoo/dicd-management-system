@@ -760,16 +760,323 @@
     
     // 데이터 내보내기
     function exportData(format) {
-        if (!measurementsCache || measurementsCache.length === 0) {
+        // 현재 필터 조건 가져오기
+        const filterParams = getFilterParams();
+        
+        // 로딩 표시
+        const loadingHtml = `
+        <div class="position-fixed w-100 h-100" style="top: 0; left: 0; background: rgba(0, 0, 0, 0.3); z-index: 9999;">
+            <div class="d-flex justify-content-center align-items-center h-100">
+                <div class="spinner-border text-light" role="status">
+                    <span class="sr-only">내보내기 중...</span>
+                </div>
+                <p class="text-light mt-2">데이터를 가져오는 중입니다. 잠시 기다려주세요...</p>
+            </div>
+        </div>
+        `;
+        const loadingElement = document.createElement('div');
+        loadingElement.innerHTML = loadingHtml;
+        document.body.appendChild(loadingElement.firstChild);
+        
+        try {
+            // 전체 데이터 가져오기 (페이지네이션 없이)
+            fetchAllMeasurements(filterParams).then(allData => {
+                if (!allData || allData.length === 0) {
+                    removeLoading();
+                    alert('내보낼 데이터가 없습니다.');
+                    return;
+                }
+                
+                // 내보낼 데이터 준비
+                prepareExportData(allData).then(exportData => {
+                    // 로딩 제거
+                    removeLoading();
+                    
+                    if (format === 'csv') {
+                        exportToCSV(exportData);
+                    } else if (format === 'excel') {
+                        exportToExcel(exportData);
+                    }
+                }).catch(error => {
+                    console.error('데이터 준비 오류:', error);
+                    removeLoading();
+                    alert('데이터 내보내기 준비 중 오류가 발생했습니다: ' + error.message);
+                });
+            }).catch(error => {
+                console.error('데이터 가져오기 오류:', error);
+                removeLoading();
+                alert('전체 데이터를 가져오는 중 오류가 발생했습니다: ' + error.message);
+            });
+        } catch (error) {
+            console.error('내보내기 오류:', error);
+            removeLoading();
+            alert('데이터 내보내기 중 오류가 발생했습니다: ' + error.message);
+        }
+    }
+
+    // 로딩 제거 함수
+    function removeLoading() {
+        if (document.body.lastChild.classList && document.body.lastChild.classList.contains('position-fixed')) {
+            document.body.removeChild(document.body.lastChild);
+        }
+    }
+
+    // 모든 측정 데이터 가져오기 (페이지네이션 없이)
+    async function fetchAllMeasurements(filterParams) {
+        try {
+            // 사용자에게 데이터 양이 많을 수 있음을 알림
+            const proceed = confirm("현재 필터 조건에 맞는 모든 데이터를 내보내시겠습니까? 데이터 양이 많을 경우 시간이 오래 걸릴 수 있습니다.");
+            if (!proceed) {
+                return [];
+            }
+            
+            // API 호출 파라미터 (limit을 최대값으로 설정)
+            const params = {
+                ...filterParams,
+                skip: 0,
+                limit: 10000  // 매우 큰 값으로 설정하여 모든 데이터 가져오기
+            };
+            
+            // 측정 데이터 가져오기
+            const measurements = await api.getMeasurements(params);
+            return measurements;
+        } catch (error) {
+            console.error('전체 측정 데이터 로드 실패:', error);
+            throw error;
+        }
+    }
+
+    // 내보내기용 데이터 준비
+    async function prepareExportData(measurements) {
+        // 측정 데이터 추가 정보 로드
+        let exportData = [];
+        let count = 0;
+        const total = measurements.length;
+        
+        // 진행상황 표시를 위한 요소 가져오기
+        const progressText = document.querySelector('.position-fixed p');
+        if (progressText) {
+            progressText.textContent = `데이터 처리 중... (0/${total})`;
+        }
+        
+        for (const measurement of measurements) {
+            try {
+                // 타겟 정보
+                let target = await getOrFetchData(targetsCache, measurement.target_id, `${API_CONFIG.ENDPOINTS.TARGETS}/${measurement.target_id}`);
+                
+                // 공정 정보
+                let process = await getOrFetchData(processesCache, target.process_id, `${API_CONFIG.ENDPOINTS.PROCESSES}/${target.process_id}`);
+                
+                // 제품군 정보
+                let productGroup = await getOrFetchData(productGroupsCache, process.product_group_id, `${API_CONFIG.ENDPOINTS.PRODUCT_GROUPS}/${process.product_group_id}`);
+                
+                // 장비 정보
+                let equipmentNames = await getEquipmentNames(measurement);
+                
+                // SPEC 상태 가져오기
+                let specStatus = "N/A";
+                try {
+                    // 캐시된 활성 SPEC 확인
+                    if (!window.activeSpecCache) window.activeSpecCache = {};
+                    
+                    if (!window.activeSpecCache[measurement.target_id]) {
+                        window.activeSpecCache[measurement.target_id] = await api.getActiveSpec(measurement.target_id);
+                    }
+                    
+                    const spec = window.activeSpecCache[measurement.target_id];
+                    if (spec) {
+                        if (measurement.avg_value < spec.lsl || measurement.avg_value > spec.usl) {
+                            specStatus = "SPEC 초과";
+                        } else {
+                            specStatus = "정상";
+                        }
+                    }
+                } catch (error) {
+                    console.warn(`타겟 ID ${measurement.target_id}에 대한 활성 SPEC이 없습니다.`);
+                }
+                
+                // 행 데이터 추가
+                exportData.push({
+                    날짜: formatDate(measurement.created_at),
+                    제품군: productGroup.name,
+                    공정: process.name,
+                    타겟: target.name,
+                    장비: equipmentNames,
+                    DEVICE: measurement.device,
+                    LOT_NO: measurement.lot_no,
+                    WAFER_NO: measurement.wafer_no,
+                    상_측정값: measurement.value_top,
+                    중_측정값: measurement.value_center,
+                    하_측정값: measurement.value_bottom,
+                    좌_측정값: measurement.value_left,
+                    우_측정값: measurement.value_right,
+                    평균값: measurement.avg_value,
+                    최소값: measurement.min_value,
+                    최대값: measurement.max_value,
+                    범위: measurement.range_value,
+                    표준편차: measurement.std_dev,
+                    작성자: measurement.author,
+                    SPEC상태: specStatus
+                });
+                
+                // 진행 상황 업데이트
+                count++;
+                if (progressText && count % 10 === 0) {
+                    progressText.textContent = `데이터 처리 중... (${count}/${total})`;
+                }
+            } catch (error) {
+                console.error('측정 데이터 내보내기 정보 준비 실패:', error);
+            }
+        }
+        
+        return exportData;
+    }
+
+    // 캐시에서 데이터 가져오거나 API 호출
+    async function getOrFetchData(cache, id, endpoint) {
+        if (cache[id]) {
+            return cache[id];
+        } else {
+            const data = await api.get(endpoint);
+            cache[id] = data;
+            return data;
+        }
+    }
+
+    // 장비 이름 가져오기
+    async function getEquipmentNames(measurement) {
+        let equipmentNames = [];
+        
+        if (measurement.coating_equipment_id) {
+            try {
+                const equipment = await getOrFetchData(equipmentsCache, measurement.coating_equipment_id, `${API_CONFIG.ENDPOINTS.EQUIPMENTS}/${measurement.coating_equipment_id}`);
+                equipmentNames.push(`코팅: ${equipment.name}`);
+            } catch (error) {
+                console.warn(`코팅 장비 ID ${measurement.coating_equipment_id} 정보를 가져올 수 없습니다.`);
+            }
+        }
+        
+        if (measurement.exposure_equipment_id) {
+            try {
+                const equipment = await getOrFetchData(equipmentsCache, measurement.exposure_equipment_id, `${API_CONFIG.ENDPOINTS.EQUIPMENTS}/${measurement.exposure_equipment_id}`);
+                equipmentNames.push(`노광: ${equipment.name}`);
+            } catch (error) {
+                console.warn(`노광 장비 ID ${measurement.exposure_equipment_id} 정보를 가져올 수 없습니다.`);
+            }
+        }
+        
+        if (measurement.development_equipment_id) {
+            try {
+                const equipment = await getOrFetchData(equipmentsCache, measurement.development_equipment_id, `${API_CONFIG.ENDPOINTS.EQUIPMENTS}/${measurement.development_equipment_id}`);
+                equipmentNames.push(`현상: ${equipment.name}`);
+            } catch (error) {
+                console.warn(`현상 장비 ID ${measurement.development_equipment_id} 정보를 가져올 수 없습니다.`);
+            }
+        }
+        
+        return equipmentNames.join(', ') || '-';
+    }
+
+    // CSV로 내보내기
+    function exportToCSV(data) {
+        if (!data || data.length === 0) {
             alert('내보낼 데이터가 없습니다.');
             return;
         }
         
-        // 실제 구현은 서버에서 처리하거나 CSVàExport 라이브러리 사용 필요
-        alert(`${format.toUpperCase()} 형식으로 데이터 내보내기 기능은 아직 구현되지 않았습니다.`);
+        // 헤더 준비
+        const headers = Object.keys(data[0]);
+        
+        // CSV 문자열 생성
+        let csvContent = '\uFEFF'; // BOM 문자 추가 (한글 인코딩 지원)
+        
+        // 헤더 추가
+        csvContent += headers.join(',') + '\r\n';
+        
+        // 데이터 행 추가
+        data.forEach(row => {
+            const values = headers.map(header => {
+                const cell = row[header] !== undefined ? row[header] : '';
+                // 콤마, 따옴표, 줄바꿈이 포함된 경우 따옴표로 감싸기
+                if (typeof cell === 'string' && (cell.includes(',') || cell.includes('"') || cell.includes('\n'))) {
+                    return '"' + cell.replace(/"/g, '""') + '"';
+                }
+                return cell;
+            });
+            csvContent += values.join(',') + '\r\n';
+        });
+        
+        // 파일명 생성
+        const date = new Date();
+        const timestamp = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}${String(date.getHours()).padStart(2, '0')}${String(date.getMinutes()).padStart(2, '0')}`;
+        const fileName = `DICD_측정데이터_${timestamp}.csv`;
+        
+        // Blob 생성 및 다운로드
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        if (navigator.msSaveBlob) { // IE 10+
+            navigator.msSaveBlob(blob, fileName);
+        } else {
+            const link = document.createElement('a');
+            if (link.download !== undefined) {
+                // Browsers that support HTML5 download attribute
+                const url = URL.createObjectURL(blob);
+                link.setAttribute('href', url);
+                link.setAttribute('download', fileName);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        }
     }
-    
-    // 페이지 로드 시 초기화
+
+    // 날짜 포맷 함수
+    function formatDate(dateString) {
+        const date = new Date(dateString);
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+    }
+
+    // Excel로 내보내기
+    function exportToExcel(data) {
+        if (!data || data.length === 0) {
+            alert('내보낼 데이터가 없습니다.');
+            return;
+        }
+        
+        // SheetJS가 설치되어 있지 않다면, CDN에서 불러오기
+        if (typeof XLSX === 'undefined') {
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+            script.onload = function() {
+                // 스크립트 로드 후 Excel 내보내기 실행
+                exportToExcelWithSheetJS(data);
+            };
+            document.head.appendChild(script);
+        } else {
+            // 이미 SheetJS가 로드되어 있다면 바로 실행
+            exportToExcelWithSheetJS(data);
+        }
+    }
+
+    // SheetJS를 이용하여 Excel로 내보내기
+    function exportToExcelWithSheetJS(data) {
+        // 데이터를 SheetJS 형식으로 변환
+        const ws = XLSX.utils.json_to_sheet(data);
+        
+        // 워크북 생성
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, '측정 데이터');
+        
+        // 파일명 생성
+        const date = new Date();
+        const timestamp = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}${String(date.getHours()).padStart(2, '0')}${String(date.getMinutes()).padStart(2, '0')}`;
+        const fileName = `DICD_측정데이터_${timestamp}.xlsx`;
+        
+        // 파일 다운로드
+        XLSX.writeFile(wb, fileName);
+    }
+
+    // 페이지 로드 시 초기화 - 이 부분은 유지해야 합니다!
     document.addEventListener('DOMContentLoaded', initViewPage);
 
 // 수정 폼 채우기

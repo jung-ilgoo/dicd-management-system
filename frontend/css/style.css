@@ -7,13 +7,6 @@
     margin-bottom: 0;
 }
 
-/* 커스텀 너비 (col-md-1.5와 비슷한 효과) */
-.custom-width {
-    width: 12.5%; /* 12 컬럼 시스템에서 1.5/12 = 12.5% */
-    padding-right: 7.5px;
-    padding-left: 7.5px;
-}
-
 /* 사이드바 브랜드 링크 스타일링 (로고 제거 후) */
 .brand-link {
     text-align: center;
@@ -281,11 +274,6 @@
     padding: 5px 8px;
 }
 
-/* 배경색 투명도 클래스 추가 */
-.bg-opacity-10 {
-    opacity: 0.1;
-}
-
 /* 테이블 스타일 개선 */
 #cpk-heatmap-container .table {
     margin-bottom: 0;
@@ -542,23 +530,4 @@ input[type=number]::-webkit-outer-spin-button {
 .spec-exceeded {
     border: 2px solid #dc3545 !important;
     background-color: #fff8f8 !important;
-}
-
-/* frontend/css/style.css에 추가 */
-.dynamic-equipment-grid .empty-cell {
-    border: 1px dashed #dee2e6;
-    border-radius: 0.25rem;
-    background-color: #f8f9fa;
-}
-
-.dynamic-equipment-grid .equipment-btn {
-    font-size: 0.85rem;
-    padding: 0.25rem 0.5rem;
-    white-space: normal;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    line-height: 1.2;
 }
