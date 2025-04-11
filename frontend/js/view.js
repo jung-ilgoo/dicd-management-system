@@ -1,9 +1,5 @@
 // 데이터 조회 페이지 모듈
 (function() {
-    // 전역 변수
-    let currentPage = 1;
-    const pageSize = 20;
-    let totalItems = 0;
     let measurementsCache = [];
     // 전역 캐시 추가
     let targetsCache = {};
@@ -89,7 +85,7 @@
     }
     
     // 측정 데이터 로드
-    async function loadMeasurements(page = 1) {
+    async function loadMeasurements() {
         try {
             // 로딩 표시
             document.getElementById('data-table-body').innerHTML = `
@@ -102,17 +98,13 @@
             </tr>
             `;
             
-            // 현재 페이지 저장
-            currentPage = page;
-            
             // 필터 파라미터 수집
             const filters = getFilterParams();
             
             // API 호출 파라미터
             const params = {
                 ...filters,
-                skip: (page - 1) * pageSize,
-                limit: pageSize
+                limit: 100
             };
             
             // 측정 데이터 가져오기
@@ -124,16 +116,6 @@
             // 테이블 업데이트
             updateDataTable(measurements);
             
-            // 페이지네이션 업데이트
-            // API에서 총 항목 수를 반환받도록 수정하거나, 대안으로 측정 데이터가 최대 항목 수보다 적을 경우 마지막 페이지로 판단
-            if (measurements.length < pageSize) {
-                // 현재 페이지에 표시된 항목이 pageSize보다 적으면 마지막 페이지로 간주
-                totalItems = (page - 1) * pageSize + measurements.length;
-            } else {
-                // 다음 페이지가 있을 수 있으므로 최소 현재 페이지까지의 항목 수 + pageSize로 설정
-                totalItems = page * pageSize + pageSize; // 최소한 다음 페이지가 있다고 가정
-            }
-            updatePagination();
             
         } catch (error) {
             console.error('측정 데이터 로드 실패:', error);
@@ -346,82 +328,6 @@
             button.addEventListener('click', function() {
                 const measurementId = this.dataset.id;
                 showMeasurementDetail(measurementId);
-            });
-        });
-    }
-    
-    // 페이지네이션 업데이트
-    function updatePagination() {
-        const totalPages = Math.ceil(totalItems / pageSize);
-        let paginationHtml = '';
-        
-        // 페이지네이션이 없는 경우
-        if (totalPages <= 1) {
-            document.getElementById('pagination').innerHTML = '';
-            return;
-        }
-        
-        // 페이지 그룹 크기 설정
-        const pagesPerGroup = 5; // 한 그룹에 5개 페이지 표시
-        
-        // 현재 페이지가 속한 그룹 계산
-        const currentGroup = Math.floor((currentPage - 1) / pagesPerGroup);
-        
-        // 현재 그룹의 시작 페이지와 끝 페이지 계산
-        const startPage = currentGroup * pagesPerGroup + 1;
-        const endPage = Math.min(startPage + pagesPerGroup - 1, totalPages);
-        
-        console.log(`Current Page: ${currentPage}, Total Pages: ${totalPages}`);
-        console.log(`Current Group: ${currentGroup}, Start Page: ${startPage}, End Page: ${endPage}`);
-        
-        // 첫 페이지로 이동 버튼
-        paginationHtml += `
-        <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
-            <a class="page-link" href="#" data-page="1">&laquo;</a>
-        </li>
-        `;
-        
-        // 이전 페이지 그룹 버튼
-        paginationHtml += `
-        <li class="page-item ${startPage === 1 ? 'disabled' : ''}">
-            <a class="page-link" href="#" data-page="${startPage - 1}">&lt;</a>
-        </li>
-        `;
-        
-        // 페이지 번호 버튼
-        for (let i = startPage; i <= endPage; i++) {
-            paginationHtml += `
-            <li class="page-item ${i === currentPage ? 'active' : ''}">
-                <a class="page-link" href="#" data-page="${i}">${i}</a>
-            </li>
-            `;
-        }
-        
-        // 다음 페이지 그룹 버튼
-        paginationHtml += `
-        <li class="page-item ${endPage === totalPages ? 'disabled' : ''}">
-            <a class="page-link" href="#" data-page="${endPage + 1}">&gt;</a>
-        </li>
-        `;
-        
-        // 마지막 페이지로 이동 버튼
-        paginationHtml += `
-        <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
-            <a class="page-link" href="#" data-page="${totalPages}">&raquo;</a>
-        </li>
-        `;
-        
-        // 페이지네이션에 HTML 삽입
-        document.getElementById('pagination').innerHTML = paginationHtml;
-        
-        // 페이지 버튼 이벤트 설정
-        document.querySelectorAll('#pagination .page-link').forEach(link => {
-            link.addEventListener('click', function(e) {
-                e.preventDefault();
-                const page = parseInt(this.dataset.page);
-                if (!isNaN(page) && page >= 1 && page <= totalPages) {
-                    loadMeasurements(page);
-                }
             });
         });
     }
