@@ -125,8 +125,8 @@
             updateDataTable(measurements);
             
             // 페이지네이션 업데이트
-            // 임시로 총 항목 수를 100으로 가정 (실제로는 API에서 반환해야 함)
-            totalItems = 100;
+            // 실제 데이터 크기를 기반으로 총 항목 수 설정
+            totalItems = measurements.length >= pageSize ? (page * pageSize) + pageSize : (page * pageSize) + measurements.length;
             updatePagination();
             
         } catch (error) {
@@ -349,6 +349,19 @@
         const totalPages = Math.ceil(totalItems / pageSize);
         let paginationHtml = '';
         
+        // 페이지 그룹 크기 설정
+        const pagesPerGroup = 5;
+        
+        // 현재 페이지가 속한 그룹 계산
+        const currentGroup = Math.floor((currentPage - 1) / pagesPerGroup);
+        
+        // 현재 그룹의 시작 페이지와 끝 페이지 계산
+        const startPage = currentGroup * pagesPerGroup + 1;
+        const endPage = Math.min(startPage + pagesPerGroup - 1, totalPages);
+        
+        console.log(`Current Page: ${currentPage}, Total Pages: ${totalPages}`);
+        console.log(`Current Group: ${currentGroup}, Start Page: ${startPage}, End Page: ${endPage}`);
+        
         // 이전 페이지 버튼
         paginationHtml += `
         <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
@@ -356,11 +369,45 @@
         </li>
         `;
         
-        // 페이지 번호
-        for (let i = 1; i <= totalPages; i++) {
+        // 첫 번째 그룹이 아니면 첫 페이지로 가는 버튼 추가
+        if (currentGroup > 0) {
+            paginationHtml += `
+            <li class="page-item">
+                <a class="page-link" href="#" data-page="1">1</a>
+            </li>
+            `;
+            
+            if (startPage > 2) {
+                paginationHtml += `
+                <li class="page-item disabled">
+                    <a class="page-link" href="#">...</a>
+                </li>
+                `;
+            }
+        }
+        
+        // 페이지 번호 버튼
+        for (let i = startPage; i <= endPage; i++) {
             paginationHtml += `
             <li class="page-item ${i === currentPage ? 'active' : ''}">
                 <a class="page-link" href="#" data-page="${i}">${i}</a>
+            </li>
+            `;
+        }
+        
+        // 마지막 그룹이 아니면 마지막 페이지로 가는 버튼 추가
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) {
+                paginationHtml += `
+                <li class="page-item disabled">
+                    <a class="page-link" href="#">...</a>
+                </li>
+                `;
+            }
+            
+            paginationHtml += `
+            <li class="page-item">
+                <a class="page-link" href="#" data-page="${totalPages}">${totalPages}</a>
             </li>
             `;
         }
@@ -380,7 +427,7 @@
             link.addEventListener('click', function(e) {
                 e.preventDefault();
                 const page = parseInt(this.dataset.page);
-                if (page !== currentPage && page >= 1 && page <= totalPages) {
+                if (!isNaN(page) && page >= 1 && page <= totalPages) {
                     loadMeasurements(page);
                 }
             });
