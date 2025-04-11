@@ -20,11 +20,9 @@ def create_spec(
 def read_specs(
     target_id: Optional[int] = None,
     is_active: Optional[bool] = None,
-    skip: int = 0, 
-    limit: int = 100, 
     db: Session = Depends(database.get_db)
 ):
-    specs = crud.get_specs(db, target_id=target_id, is_active=is_active, skip=skip, limit=limit)
+    specs = crud.get_specs(db, target_id=target_id, is_active=is_active)
     return specs
 
 @router.get("/{spec_id}", response_model=spec.Spec)

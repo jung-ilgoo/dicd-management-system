@@ -18,9 +18,9 @@ def create_process(
 
 @router.get("/", response_model=List[process.Process])
 def read_processes(
-    product_group_id: int = None, skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)
+    product_group_id: int = None, db: Session = Depends(database.get_db)
 ):
-    processes = crud.get_processes(db, product_group_id=product_group_id, skip=skip, limit=limit)
+    processes = crud.get_processes(db, product_group_id=product_group_id)
     return processes
 
 @router.get("/{process_id}", response_model=process.Process)

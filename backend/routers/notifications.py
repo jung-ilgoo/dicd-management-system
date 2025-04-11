@@ -13,8 +13,6 @@ router = APIRouter(
 
 @router.get("/", response_model=List[notification.Notification])
 def read_notifications(
-    skip: int = 0, 
-    limit: int = 50,
     include_read: bool = Query(False, description="읽은 알림도 포함할지 여부"),
     db: Session = Depends(database.get_db)
 ):
@@ -22,7 +20,7 @@ def read_notifications(
     알림 목록 조회
     """
     notifications = notification_service.get_notifications(
-        db, skip=skip, limit=limit, include_read=include_read
+        db, include_read=include_read
     )
     return notifications
 

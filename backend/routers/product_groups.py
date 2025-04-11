@@ -17,8 +17,8 @@ def create_product_group(
     return crud.create_product_group(db=db, product_group=product_group)
 
 @router.get("/", response_model=List[product_group.ProductGroup])
-def read_product_groups(skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
-    product_groups = crud.get_product_groups(db, skip=skip, limit=limit)
+def read_product_groups(db: Session = Depends(database.get_db)):
+    product_groups = crud.get_product_groups(db)
     return product_groups
 
 @router.get("/{product_group_id}", response_model=product_group.ProductGroup)

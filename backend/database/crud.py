@@ -15,8 +15,8 @@ def create_product_group(db: Session, product_group: product_group.ProductGroupC
     db.refresh(db_product_group)
     return db_product_group
 
-def get_product_groups(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(models.ProductGroup).offset(skip).limit(limit).all()
+def get_product_groups(db: Session):
+    return db.query(models.ProductGroup).all()
 
 def get_product_group(db: Session, product_group_id: int):
     return db.query(models.ProductGroup).filter(models.ProductGroup.id == product_group_id).first()
@@ -50,11 +50,11 @@ def create_process(db: Session, process: process.ProcessCreate):
     db.refresh(db_process)
     return db_process
 
-def get_processes(db: Session, product_group_id: int = None, skip: int = 0, limit: int = 100):
+def get_processes(db: Session, product_group_id: int = None):
     query = db.query(models.Process)
     if product_group_id:
         query = query.filter(models.Process.product_group_id == product_group_id)
-    return query.offset(skip).limit(limit).all()
+    return query.all()
 
 def get_process(db: Session, process_id: int):
     return db.query(models.Process).filter(models.Process.id == process_id).first()
@@ -89,11 +89,11 @@ def create_target(db: Session, target: target.TargetCreate):
     db.refresh(db_target)
     return db_target
 
-def get_targets(db: Session, process_id: int = None, skip: int = 0, limit: int = 100):
+def get_targets(db: Session, process_id: int = None):
     query = db.query(models.Target)
     if process_id:
         query = query.filter(models.Target.process_id == process_id)
-    return query.offset(skip).limit(limit).all()
+    return query.all()
 
 def get_target(db: Session, target_id: int):
     return db.query(models.Target).filter(models.Target.id == target_id).first()
@@ -193,7 +193,7 @@ def get_measurements(db: Session, target_id: int = None, process_id: int = None,
                      product_group_id: int = None, device: str = None, 
                      lot_no: str = None, start_date: datetime = None, 
                      end_date: datetime = None, equipment_id: int = None,
-                     keyword: str = None, skip: int = 0, limit: int = 100):
+                     keyword: str = None):
     
     # 조인 쿼리를 위한 설정
     query = db.query(models.Measurement)
@@ -239,7 +239,7 @@ def get_measurements(db: Session, target_id: int = None, process_id: int = None,
     # 최신 데이터 순으로 정렬
     query = query.order_by(models.Measurement.created_at.desc())
     
-    return query.offset(skip).limit(limit).all()
+    return query.all()
 
 # 측정 데이터 업데이트 함수 수정
 def update_measurement(db: Session, measurement_id: int, measurement_data: measurement.MeasurementCreate):
@@ -368,7 +368,7 @@ def create_spec(db: Session, spec_data: spec.SpecCreate):
     db.refresh(db_spec)
     return db_spec
 
-def get_specs(db: Session, target_id: int = None, is_active: bool = None, skip: int = 0, limit: int = 100):
+def get_specs(db: Session, target_id: int = None, is_active: bool = None):
     query = db.query(models.Spec)
     
     if target_id:
@@ -379,7 +379,7 @@ def get_specs(db: Session, target_id: int = None, is_active: bool = None, skip: 
     # 최신 SPEC 순으로 정렬
     query = query.order_by(models.Spec.created_at.desc())
     
-    return query.offset(skip).limit(limit).all()
+    return query.all()
 
 def get_spec(db: Session, spec_id: int):
     return db.query(models.Spec).filter(models.Spec.id == spec_id).first()
@@ -431,12 +431,12 @@ def delete_spec(db: Session, spec_id: int):
     return False
 
 # 장비 CRUD 함수 (crud.py 파일에 추가)
-def get_equipments(db: Session, type: str = None, skip: int = 0, limit: int = 100):
+def get_equipments(db: Session, type: str = None):
     """장비 목록 조회 (타입별 필터링 가능)"""
     query = db.query(models.Equipment)
     if type:
         query = query.filter(models.Equipment.type == type)
-    return query.offset(skip).limit(limit).all()
+    return query.all()
 
 def get_equipment(db: Session, equipment_id: int):
     """ID로 장비 조회"""

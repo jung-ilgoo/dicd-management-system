@@ -18,9 +18,9 @@ def create_target(
 
 @router.get("/", response_model=List[target.Target])
 def read_targets(
-    process_id: int = None, skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)
+    process_id: int = None, db: Session = Depends(database.get_db)
 ):
-    targets = crud.get_targets(db, process_id=process_id, skip=skip, limit=limit)
+    targets = crud.get_targets(db, process_id=process_id)
     return targets
 
 @router.get("/{target_id}", response_model=target.Target)

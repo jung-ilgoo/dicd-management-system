@@ -36,8 +36,6 @@ def create_notification(
 
 def get_notifications(
     db: Session, 
-    skip: int = 0, 
-    limit: int = 50,
     include_read: bool = False
 ) -> List[models.Notification]:
     """
@@ -52,7 +50,7 @@ def get_notifications(
     # 최신 알림 순으로 정렬
     query = query.order_by(models.Notification.created_at.desc())
     
-    return query.offset(skip).limit(limit).all()
+    return query.all()
 
 def get_notification(db: Session, notification_id: int) -> Optional[models.Notification]:
     """

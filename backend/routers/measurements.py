@@ -31,8 +31,6 @@ def read_measurements(
     end_date: Optional[str] = None,    # 문자열로 날짜 받기 추가
     equipment_id: Optional[int] = None,
     keyword: Optional[str] = None,
-    skip: int = 0, 
-    limit: int = 100, 
     db: Session = Depends(database.get_db)
 ):
     # 날짜 처리 로직 수정
@@ -63,8 +61,6 @@ def read_measurements(
         end_date=end_datetime if 'end_datetime' in locals() else None,  # 변환된 datetime 사용
         equipment_id=equipment_id,
         keyword=keyword,
-        skip=skip, 
-        limit=limit
     )
     return measurements
 

@@ -150,8 +150,6 @@ def generate_monthly_report(
 def get_reports(
     target_id: Optional[int] = None,
     report_type: Optional[str] = None,
-    skip: int = 0,
-    limit: int = 100,
     db: Session = Depends(database.get_db)
 ):
     """
@@ -170,7 +168,7 @@ def get_reports(
     # 최신 보고서 순으로 정렬
     query = query.order_by(models.Report.created_at.desc())
     
-    reports_list = query.offset(skip).limit(limit).all()
+    reports_list = query.all()
     return reports_list
 
 @router.post("/recipients", response_model=report.ReportRecipient)
