@@ -629,7 +629,7 @@ function renderQQPlot(data) {
     });
 }
 
-// 박스 플롯 렌더링 함수
+// 박스 플롯 렌더링 함수 수정
 function renderBoxPlot(data) {
     const ctx = document.getElementById('boxplot-chart').getContext('2d');
     
@@ -656,6 +656,12 @@ function renderBoxPlot(data) {
     
     // 이상치 찾기
     const outliers = values.filter(v => v < lowerWhisker || v > upperWhisker);
+    
+    // Y축 범위 설정을 위한 값 계산
+    // 데이터 범위보다 약간 더 넓게 표시하기 위해 여유 공간 추가
+    const dataMin = Math.min(...values);
+    const dataMax = Math.max(...values);
+    const padding = (dataMax - dataMin) * 0.1; // 10% 패딩
     
     // SPEC 라인 데이터
     let annotations = [];
@@ -692,46 +698,18 @@ function renderBoxPlot(data) {
         ];
     }
     
-    // 박스플롯 데이터 (단순화된 방식으로 표현)
+    // 박스 플롯 데이터를 단순한 형태로 준비
     boxplotChart = new Chart(ctx, {
-        type: 'bar',
+        type: 'scatter',
         data: {
-            labels: ['박스플롯'],
-            datasets: [
-                {
-                    label: '박스 (Q1-Q3)',
-                    data: [q3 - q1],
-                    backgroundColor: 'rgba(75, 192, 192, 0.6)',
-                    borderColor: 'rgba(75, 192, 192, 1)',
-                    borderWidth: 1,
-                    barPercentage: 0.5,
-                    base: q1
-                },
-                {
-                    label: '중앙값 (Median)',
-                    data: [0.01], // 매우 작은 값으로 라인처럼 보이게
-                    backgroundColor: 'rgba(54, 162, 235, 1)',
-                    borderColor: 'rgba(54, 162, 235, 1)',
-                    borderWidth: 1,
-                    barPercentage: 0.6,
-                    base: median - 0.005
-                },
-                {
-                    label: '최소-최대 범위',
-                    data: [0], // 데이터는 실제로 사용되지 않음
-                    borderColor: 'rgba(75, 192, 192, 1)',
-                    borderWidth: 1
-                },
-                {
-                    label: '이상치 (Outliers)',
-                    data: outliers.map(v => ({ x: 0, y: v })),
-                    type: 'scatter',
-                    backgroundColor: 'rgba(255, 99, 132, 0.7)',
-                    borderColor: 'rgba(255, 99, 132, 1)',
-                    pointRadius: 4,
-                    pointHoverRadius: 6
-                }
-            ]
+            datasets: [{
+                label: '이상치',
+                data: outliers.map(v => ({ x: 0, y: v })),
+                backgroundColor: 'rgba(255, 99, 132, 0.7)',
+                borderColor: 'rgba(255, 99, 132, 1)',
+                pointRadius: 4,
+                pointHoverRadius: 6
+            }]
         },
         options: {
             responsive: true,
@@ -742,7 +720,7 @@ function renderBoxPlot(data) {
                     annotations: annotations
                 },
                 legend: {
-                    position: 'top',
+                    display: false
                 },
                 title: {
                     display: true,
@@ -759,8 +737,7 @@ function renderBoxPlot(data) {
                                 `Q1: ${q1.toFixed(3)}`,
                                 `중앙값: ${median.toFixed(3)}`,
                                 `Q3: ${q3.toFixed(3)}`,
-                                `최대값: ${max.toFixed(3)}`,
-                                `IQR: ${iqr.toFixed(3)}`
+                                `최대값: ${max.toFixed(3)}`
                             ];
                         }
                     }
@@ -768,50 +745,104 @@ function renderBoxPlot(data) {
             },
             scales: {
                 x: {
-                    display: false
+                    type: 'category',
+                    labels: ['측정값 분포'],
+                    grid: {
+                        display: false
+                    }
                 },
                 y: {
                     title: {
                         display: true,
                         text: '측정값'
+                    },
+                    min: dataMin - padding,
+                    max: dataMax + padding,
+                    ticks: {
+                        stepSize: (dataMax - dataMin) / 10
                     }
                 }
             }
         },
         plugins: [{
+            id: 'boxplot',
             afterDraw: function(chart) {
                 const ctx = chart.ctx;
-                const xAxis = chart.scales.x;
-                const yAxis = chart.scales.y;
-                const xCenter = xAxis.getPixelForValue(0);
+                const xScale = chart.scales.x;
+                const yScale = chart.scales.y;
                 
-                // 세로 중앙선 그리기
-                ctx.save();
+                // x 좌표 계산 (카테고리의 중앙)
+                const x = xScale.getPixelForValue('측정값 분포');
+                const width = 50; // 박스 너비
+                
+                // Q1-Q3 박스 그리기
+                const yQ1 = yScale.getPixelForValue(q1);
+                const yQ3 = yScale.getPixelForValue(q3);
+                const boxHeight = yQ1 - yQ3;
+                
+                // 박스 그리기
+                ctx.fillStyle = 'rgba(75, 192, 192, 0.6)';
+                ctx.strokeStyle = 'rgba(75, 192, 192, 1)';
+                ctx.lineWidth = 1;
                 ctx.beginPath();
-                ctx.moveTo(xCenter, yAxis.getPixelForValue(lowerWhisker));
-                ctx.lineTo(xCenter, yAxis.getPixelForValue(upperWhisker));
+                ctx.rect(x - width/2, yQ3, width, boxHeight);
+                ctx.fill();
+                ctx.stroke();
+                
+                // 중앙값 선 그리기
+                const yMedian = yScale.getPixelForValue(median);
+                ctx.beginPath();
+                ctx.moveTo(x - width/2, yMedian);
+                ctx.lineTo(x + width/2, yMedian);
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = 'rgba(54, 162, 235, 1)';
+                ctx.stroke();
+                
+                // 위스커(수염) 그리기
+                const yMin = yScale.getPixelForValue(lowerWhisker);
+                const yMax = yScale.getPixelForValue(upperWhisker);
+                
+                // 중앙 수직선 (Q1 ~ lowerWhisker)
+                ctx.beginPath();
+                ctx.moveTo(x, yQ1);
+                ctx.lineTo(x, yMin);
                 ctx.lineWidth = 1;
                 ctx.strokeStyle = 'rgba(75, 192, 192, 1)';
                 ctx.stroke();
                 
-                // 위스커 상단 가로선
-                const whiskerWidth = xAxis.getPixelForValue(0.15) - xAxis.getPixelForValue(-0.15);
+                // 중앙 수직선 (Q3 ~ upperWhisker)
                 ctx.beginPath();
-                ctx.moveTo(xCenter - whiskerWidth/2, yAxis.getPixelForValue(upperWhisker));
-                ctx.lineTo(xCenter + whiskerWidth/2, yAxis.getPixelForValue(upperWhisker));
+                ctx.moveTo(x, yQ3);
+                ctx.lineTo(x, yMax);
                 ctx.lineWidth = 1;
                 ctx.strokeStyle = 'rgba(75, 192, 192, 1)';
                 ctx.stroke();
                 
-                // 위스커 하단 가로선
+                // lowerWhisker 가로선
                 ctx.beginPath();
-                ctx.moveTo(xCenter - whiskerWidth/2, yAxis.getPixelForValue(lowerWhisker));
-                ctx.lineTo(xCenter + whiskerWidth/2, yAxis.getPixelForValue(lowerWhisker));
+                ctx.moveTo(x - width/3, yMin);
+                ctx.lineTo(x + width/3, yMin);
                 ctx.lineWidth = 1;
                 ctx.strokeStyle = 'rgba(75, 192, 192, 1)';
                 ctx.stroke();
                 
-                ctx.restore();
+                // upperWhisker 가로선
+                ctx.beginPath();
+                ctx.moveTo(x - width/3, yMax);
+                ctx.lineTo(x + width/3, yMax);
+                ctx.lineWidth = 1;
+                ctx.strokeStyle = 'rgba(75, 192, 192, 1)';
+                ctx.stroke();
+                
+                // 통계값 텍스트 표시 (옵션)
+                ctx.fillStyle = 'black';
+                ctx.font = '10px Arial';
+                ctx.textAlign = 'left';
+                ctx.fillText(`최대: ${max.toFixed(2)}`, x + width/2 + 5, yScale.getPixelForValue(max));
+                ctx.fillText(`Q3: ${q3.toFixed(2)}`, x + width/2 + 5, yQ3);
+                ctx.fillText(`중앙값: ${median.toFixed(2)}`, x + width/2 + 5, yMedian);
+                ctx.fillText(`Q1: ${q1.toFixed(2)}`, x + width/2 + 5, yQ1);
+                ctx.fillText(`최소: ${min.toFixed(2)}`, x + width/2 + 5, yScale.getPixelForValue(min));
             }
         }]
     });
