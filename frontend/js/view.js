@@ -125,8 +125,14 @@
             updateDataTable(measurements);
             
             // 페이지네이션 업데이트
-            // 실제 데이터 크기를 기반으로 총 항목 수 설정
-            totalItems = measurements.length >= pageSize ? (page * pageSize) + pageSize : (page * pageSize) + measurements.length;
+            // API에서 총 항목 수를 반환받도록 수정하거나, 대안으로 측정 데이터가 최대 항목 수보다 적을 경우 마지막 페이지로 판단
+            if (measurements.length < pageSize) {
+                // 현재 페이지에 표시된 항목이 pageSize보다 적으면 마지막 페이지로 간주
+                totalItems = (page - 1) * pageSize + measurements.length;
+            } else {
+                // 다음 페이지가 있을 수 있으므로 최소 현재 페이지까지의 항목 수 + pageSize로 설정
+                totalItems = page * pageSize + pageSize; // 최소한 다음 페이지가 있다고 가정
+            }
             updatePagination();
             
         } catch (error) {
@@ -349,8 +355,14 @@
         const totalPages = Math.ceil(totalItems / pageSize);
         let paginationHtml = '';
         
+        // 페이지네이션이 없는 경우
+        if (totalPages <= 1) {
+            document.getElementById('pagination').innerHTML = '';
+            return;
+        }
+        
         // 페이지 그룹 크기 설정
-        const pagesPerGroup = 5;
+        const pagesPerGroup = 5; // 한 그룹에 5개 페이지 표시
         
         // 현재 페이지가 속한 그룹 계산
         const currentGroup = Math.floor((currentPage - 1) / pagesPerGroup);
@@ -362,29 +374,19 @@
         console.log(`Current Page: ${currentPage}, Total Pages: ${totalPages}`);
         console.log(`Current Group: ${currentGroup}, Start Page: ${startPage}, End Page: ${endPage}`);
         
-        // 이전 페이지 버튼
+        // 첫 페이지로 이동 버튼
         paginationHtml += `
         <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
-            <a class="page-link" href="#" data-page="${currentPage - 1}">이전</a>
+            <a class="page-link" href="#" data-page="1">&laquo;</a>
         </li>
         `;
         
-        // 첫 번째 그룹이 아니면 첫 페이지로 가는 버튼 추가
-        if (currentGroup > 0) {
-            paginationHtml += `
-            <li class="page-item">
-                <a class="page-link" href="#" data-page="1">1</a>
-            </li>
-            `;
-            
-            if (startPage > 2) {
-                paginationHtml += `
-                <li class="page-item disabled">
-                    <a class="page-link" href="#">...</a>
-                </li>
-                `;
-            }
-        }
+        // 이전 페이지 그룹 버튼
+        paginationHtml += `
+        <li class="page-item ${startPage === 1 ? 'disabled' : ''}">
+            <a class="page-link" href="#" data-page="${startPage - 1}">&lt;</a>
+        </li>
+        `;
         
         // 페이지 번호 버튼
         for (let i = startPage; i <= endPage; i++) {
@@ -395,27 +397,17 @@
             `;
         }
         
-        // 마지막 그룹이 아니면 마지막 페이지로 가는 버튼 추가
-        if (endPage < totalPages) {
-            if (endPage < totalPages - 1) {
-                paginationHtml += `
-                <li class="page-item disabled">
-                    <a class="page-link" href="#">...</a>
-                </li>
-                `;
-            }
-            
-            paginationHtml += `
-            <li class="page-item">
-                <a class="page-link" href="#" data-page="${totalPages}">${totalPages}</a>
-            </li>
-            `;
-        }
+        // 다음 페이지 그룹 버튼
+        paginationHtml += `
+        <li class="page-item ${endPage === totalPages ? 'disabled' : ''}">
+            <a class="page-link" href="#" data-page="${endPage + 1}">&gt;</a>
+        </li>
+        `;
         
-        // 다음 페이지 버튼
+        // 마지막 페이지로 이동 버튼
         paginationHtml += `
         <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
-            <a class="page-link" href="#" data-page="${currentPage + 1}">다음</a>
+            <a class="page-link" href="#" data-page="${totalPages}">&raquo;</a>
         </li>
         `;
         
