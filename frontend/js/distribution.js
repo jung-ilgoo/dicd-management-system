@@ -439,7 +439,7 @@ function renderDistributionChart(data) {
     });
 }
 
-// 정규 확률도(QQ Plot) 렌더링 함수 - 간소화 버전
+// 정규 확률도(QQ Plot) 렌더링 함수 - 회귀선 기반 참조선 사용
 function renderQQPlot(data) {
     const ctx = document.getElementById('qq-plot').getContext('2d');
     
@@ -452,37 +452,61 @@ function renderQQPlot(data) {
     const values = [...data.values].sort((a, b) => a - b);
     const n = values.length;
     
-    // 간단한 방법으로 QQ 플롯 데이터 계산
+    // 분포 통계
+    const mean = data.distribution_stats.mean;
+    const stdDev = data.distribution_stats.std_dev;
+    
+    // QQ 플롯 데이터 계산
     const qqData = [];
     for (let i = 0; i < n; i++) {
         // 누적확률 계산: (i + 0.5) / n
         const p = (i + 0.5) / n;
         
-        // 정규분포 역함수 간단 근사 (Box-Muller 변환의 간소화 버전)
-        // 실제 정밀한 계산이 필요하면 더 정확한 방법을 사용해야 함
+        // 정규분포 역함수 계산 - 더 정확한 근사법 (Abramowitz and Stegun)
         let z;
-        if (p <= 0.5) {
-            // 0.5 이하일 때는 음수 영역
-            z = -Math.sqrt(2) * Math.sqrt(-Math.log(p));
+        if (p <= 0 || p >= 1) {
+            // 경계값 처리
+            z = p <= 0 ? -Number.MAX_VALUE : Number.MAX_VALUE;
+        } else if (p < 0.5) {
+            // p < 0.5인 경우
+            const t = Math.sqrt(-2.0 * Math.log(p));
+            z = -((((0.010328 * t + 0.802853) * t + 2.515517) / 
+                (((0.001308 * t + 0.189269) * t + 1.432788) * t + 1.0)));
         } else {
-            // 0.5 이상일 때는 양수 영역
-            z = Math.sqrt(2) * Math.sqrt(-Math.log(1 - p));
+            // p >= 0.5인 경우
+            const t = Math.sqrt(-2.0 * Math.log(1 - p));
+            z = (((0.010328 * t + 0.802853) * t + 2.515517) / 
+                (((0.001308 * t + 0.189269) * t + 1.432788) * t + 1.0));
         }
         
-        // 평균과 표준편차 적용
-        const mean = data.distribution_stats.mean;
-        const stdDev = data.distribution_stats.std_dev;
+        // 이론적 분위수 계산 (Z-score를 데이터 스케일로 변환)
         const theoreticalQuantile = mean + z * stdDev;
         
         qqData.push({ x: theoreticalQuantile, y: values[i] });
     }
     
-    // 이상적인 라인을 위한 데이터 포인트 계산 (간소화)
-    const minValue = Math.min(...values);
-    const maxValue = Math.max(...values);
+    // 회귀선 기반 참조선 계산
+    let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+    for (const point of qqData) {
+        sumX += point.x;
+        sumY += point.y;
+        sumXY += point.x * point.y;
+        sumX2 += point.x * point.x;
+    }
+    
+    // 회귀선 기울기와 절편 계산
+    const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+    const intercept = (sumY - slope * sumX) / n;
+    
+    // 이론적 x 범위를 확장한 참조선
+    const xValues = qqData.map(d => d.x);
+    const minX = Math.min(...xValues);
+    const maxX = Math.max(...xValues);
+    const margin = (maxX - minX) * 0.1; // 10% 여백 추가
+    
     const lineData = [
-        { x: minValue, y: minValue },
-        { x: maxValue, y: maxValue }
+        { x: minX - margin, y: intercept + slope * (minX - margin) },
+        { x: maxX + margin, y: intercept + slope * (maxX + margin) }
     ];
     
     // 차트 생성
@@ -499,7 +523,7 @@ function renderQQPlot(data) {
                     pointHoverRadius: 5
                 },
                 {
-                    label: '이상적인 정규분포 라인',
+                    label: '회귀선 기반 참조선',
                     data: lineData,
                     type: 'line',
                     borderColor: 'rgba(255, 99, 132, 1)',
