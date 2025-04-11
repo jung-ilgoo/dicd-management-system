@@ -439,7 +439,7 @@ function renderDistributionChart(data) {
     });
 }
 
-// 정규 확률도(QQ Plot) 렌더링 함수 - 회귀선 기반 참조선 사용
+// 정규 확률도(QQ Plot) 렌더링 함수 - 정확한 정규 분위수 계산 및 시각화 개선
 function renderQQPlot(data) {
     const ctx = document.getElementById('qq-plot').getContext('2d');
     
@@ -447,89 +447,116 @@ function renderQQPlot(data) {
     if (qqPlotChart) {
         qqPlotChart.destroy();
     }
-    
+
     // 데이터 준비
     const values = [...data.values].sort((a, b) => a - b);
     const n = values.length;
-    
-    // 분포 통계
     const mean = data.distribution_stats.mean;
     const stdDev = data.distribution_stats.std_dev;
-    
-    // QQ 플롯 데이터 계산
-    const qqData = [];
-    for (let i = 0; i < n; i++) {
-        // 누적확률 계산: (i + 0.5) / n
-        const p = (i + 0.5) / n;
+
+    // 분위수 계산을 위한 보조 함수
+    const calculateNormalQuantile = (p) => {
+        // Beasley-Springer-Moro 근사법 사용
+        const a = [2.50662823884, -18.61500062529, 41.39119773534, -25.44106049637];
+        const b = [-8.47351093090, 23.08336743743, -21.06224101826, 3.13082909833];
+        const c = [0.3374754822726147, 0.9761690190917186, 0.1607979714918209, 
+                 0.0276438810333863, 0.0038405729373609, 0.0003951896511919, 
+                 0.0000321767881768, 0.0000002888167364, 0.0000003960315187];
+
+        if(p <= 0 || p >= 1) return p < 0.5 ? -Infinity : Infinity;
         
-        // 정규분포 역함수 계산 - 더 정확한 근사법 (Abramowitz and Stegun)
-        let z;
-        if (p <= 0 || p >= 1) {
-            // 경계값 처리
-            z = p <= 0 ? -Number.MAX_VALUE : Number.MAX_VALUE;
-        } else if (p < 0.5) {
-            // p < 0.5인 경우
-            const t = Math.sqrt(-2.0 * Math.log(p));
-            z = -((((0.010328 * t + 0.802853) * t + 2.515517) / 
-                (((0.001308 * t + 0.189269) * t + 1.432788) * t + 1.0)));
+        let u = p - 0.5;
+        let r, x;
+        
+        if(Math.abs(u) < 0.42) {
+            r = u * u;
+            x = u * (((a[3]*r + a[2])*r + a[1])*r + a[0]) / 
+                   ((((b[3]*r + b[2])*r + b[1])*r + b[0])*r + 1);
         } else {
-            // p >= 0.5인 경우
-            const t = Math.sqrt(-2.0 * Math.log(1 - p));
-            z = (((0.010328 * t + 0.802853) * t + 2.515517) / 
-                (((0.001308 * t + 0.189269) * t + 1.432788) * t + 1.0));
+            r = p < 0.5 ? Math.log(-Math.log(p)) : Math.log(-Math.log(1-p));
+            x = c[0] + r*(c[1] + r*(c[2] + r*(c[3] + r*(c[4] + r*(c[5] + 
+                               r*(c[6] + r*(c[7] + r*c[8])))))));
+            if(p < 0.5) x = -x;
         }
         
-        // 이론적 분위수 계산 (Z-score를 데이터 스케일로 변환)
-        const theoreticalQuantile = mean + z * stdDev;
-        
-        qqData.push({ x: theoreticalQuantile, y: values[i] });
+        return x;
+    };
+
+    // QQ 플롯 데이터 생성
+    const qqData = [];
+    for(let i = 0; i < n; i++) {
+        const p = (i + 0.5) / n;  // Hazen 위치 매개변수
+        const z = calculateNormalQuantile(p);
+        const theoretical = mean + z * stdDev;
+        qqData.push({ x: theoretical, y: values[i] });
     }
+
+    // 이상치 식별 (IQR 기반)
+    const q1 = values[Math.floor(n * 0.25)];
+    const q3 = values[Math.floor(n * 0.75)];
+    const iqr = q3 - q1;
+    const lowerBound = q1 - 1.5 * iqr;
+    const upperBound = q3 + 1.5 * iqr;
     
-    // 회귀선 기반 참조선 계산
-    let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
-    for (const point of qqData) {
-        sumX += point.x;
-        sumY += point.y;
-        sumXY += point.x * point.y;
-        sumX2 += point.x * point.x;
-    }
+    // 이상치와 정상 데이터 분리
+    const normalData = [];
+    const outlierData = [];
+    qqData.forEach(point => {
+        if(point.y < lowerBound || point.y > upperBound) {
+            outlierData.push(point);
+        } else {
+            normalData.push(point);
+        }
+    });
+
+        // 회귀선 계산 (전체 데이터 기준)
+        let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+        qqData.forEach(point => {
+            sumX += point.x;
+            sumY += point.y;
+            sumXY += point.x * point.y;
+            sumX2 += point.x * point.x;
+        });
+        const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+        const intercept = (sumY - slope * sumX) / n;
     
-    // 회귀선 기울기와 절편 계산
-    const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
-    const intercept = (sumY - slope * sumX) / n;
-    
-    // 이론적 x 범위를 확장한 참조선
-    const xValues = qqData.map(d => d.x);
-    const minX = Math.min(...xValues);
-    const maxX = Math.max(...xValues);
-    const margin = (maxX - minX) * 0.1; // 10% 여백 추가
-    
-    const lineData = [
-        { x: minX - margin, y: intercept + slope * (minX - margin) },
-        { x: maxX + margin, y: intercept + slope * (maxX + margin) }
-    ];
-    
+        // 참조선 데이터 생성
+        const minX = Math.min(...qqData.map(d => d.x));
+        const maxX = Math.max(...qqData.map(d => d.x));
+        const lineData = [
+            { x: minX, y: slope * minX + intercept },
+            { x: maxX, y: slope * maxX + intercept }
+        ];
+
     // 차트 생성
     qqPlotChart = new Chart(ctx, {
         type: 'scatter',
         data: {
             datasets: [
                 {
-                    label: 'Q-Q Plot',
-                    data: qqData,
+                    label: '정상 데이터',
+                    data: normalData,
                     backgroundColor: 'rgba(54, 162, 235, 0.7)',
                     borderColor: 'rgba(54, 162, 235, 1)',
                     pointRadius: 3,
                     pointHoverRadius: 5
                 },
                 {
-                    label: '회귀선 기반 참조선',
+                    label: '이상치',
+                    data: outlierData,
+                    backgroundColor: 'rgba(255, 99, 132, 0.7)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    pointRadius: 4,
+                    pointHoverRadius: 6
+                },
+                {
+                    label: '회귀 참조선',
                     data: lineData,
                     type: 'line',
-                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderColor: 'rgba(40, 167, 69, 1)',
                     borderWidth: 2,
                     pointRadius: 0,
-                    fill: false
+                    tension: 0 // 직선 유지
                 }
             ]
         },
@@ -539,17 +566,37 @@ function renderQQPlot(data) {
             plugins: {
                 tooltip: {
                     callbacks: {
-                        label: function(context) {
-                            return `이론값: ${context.parsed.x.toFixed(3)}, 실제값: ${context.parsed.y.toFixed(3)}`;
+                        label: (context) => {
+                            const point = context.dataset.data[context.dataIndex];
+                            return `이론값: ${point.x.toFixed(3)}, 실제값: ${point.y.toFixed(3)}`;
                         }
                     }
                 },
                 legend: {
                     position: 'top',
+                    labels: {
+                        filter: item => !item.text.includes('이상적') // 참조선 범례 숨김
+                    }
                 },
                 title: {
                     display: true,
                     text: '정규 확률도 (Q-Q Plot)'
+                },
+                annotation: {
+                    annotations: {
+                        line: {
+                            type: 'line',
+                            borderColor: '#28a745',
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            scaleID: 'y',
+                            value: mean,
+                            label: {
+                                content: '이상적 정규분포',
+                                position: 'end'
+                            }
+                        }
+                    }
                 }
             },
             scales: {
@@ -557,12 +604,24 @@ function renderQQPlot(data) {
                     title: {
                         display: true,
                         text: '이론적 분위수'
+                    },
+                    grid: {
+                        color: (context) => 
+                            context.tick.value === mean ? '#28a745' : 'rgba(0,0,0,0.1)',
+                        lineWidth: (context) => 
+                            context.tick.value === mean ? 2 : 1
                     }
                 },
                 y: {
                     title: {
                         display: true,
                         text: '실제 분위수'
+                    },
+                    grid: {
+                        color: (context) => 
+                            context.tick.value === mean ? '#28a745' : 'rgba(0,0,0,0.1)',
+                        lineWidth: (context) => 
+                            context.tick.value === mean ? 2 : 1
                     }
                 }
             }
