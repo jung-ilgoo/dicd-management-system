@@ -199,10 +199,6 @@ def analyze_spc(db: Session, target_id: int, days: int = 30, start_date: Optiona
             if 0 <= pos < len(lot_nos):
                 pattern["lot_no"] = lot_nos[pos]
 
-        # 패턴이 감지되면 SPC 알림 생성
-        if patterns:
-            create_spc_alerts(db, target_id, patterns)
-    
     # 위치별 데이터도 분석
     position_values = {
         "top": [m.value_top for m in measurements],
