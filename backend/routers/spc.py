@@ -47,3 +47,4 @@ def analyze_spc_data(
         raise HTTPException(status_code=404, detail="No measurement data found for this target in the specified period")
     
     return result
+

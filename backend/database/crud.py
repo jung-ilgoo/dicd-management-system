@@ -509,3 +509,17 @@ def check_duplicate_measurement(db: Session, target_id: int, lot_no: str, wafer_
     ).first()
     
     return existing is not None
+
+def create_spc_alert(db: Session, measurement_id: int, spc_rule_id: int, description: str, status: str = "new"):
+    """
+    SPC Alert 생성
+    """
+    alert = models.SPCAlert(
+        measurement_id=measurement_id,
+        spc_rule_id=spc_rule_id,
+        status=status,
+        description=description
+    )
+    db.add(alert)
+    db.commit()
+    return alert
