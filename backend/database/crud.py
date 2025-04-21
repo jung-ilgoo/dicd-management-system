@@ -185,48 +185,6 @@ def create_measurement(db: Session, measurement_data: measurement.MeasurementCre
                 measurement=db_measurement,
                 spec=active_spec
             )
-    # SPC 패턴 감지 및 알림 생성
-    try:
-        from ..services import spc
-        # 이 타겟에 대한 최근 측정값들을 가져와 SPC 분석 수행
-        spc_result = spc.analyze_spc(db, target_id=db_measurement.target_id, days=30)
-        
-        # SPC 패턴이 감지되면 알림 생성
-        if spc_result.get("patterns"):
-            alerts_added = False
-            # 마지막으로 입력된 측정 데이터에 대해서만 알림 생성
-            for pattern in spc_result.get("patterns", []):
-                position = pattern.get("position", 0)
-                if position == 0:  # 가장 최근 데이터에 대한 패턴만 처리
-                    spc_rule_name = f"Nelson Rule {pattern['rule']}"
-                    spc_rule = db.query(models.SPCRule).filter(
-                        models.SPCRule.name == spc_rule_name
-                    ).first()
-                    
-                    if spc_rule:
-                        # 중복 알림 방지
-                        existing_alert = db.query(models.SPCAlert).filter(
-                            models.SPCAlert.measurement_id == db_measurement.id,
-                            models.SPCAlert.spc_rule_id == spc_rule.id
-                        ).first()
-                        
-                        if not existing_alert:
-                            alert = models.SPCAlert(
-                                measurement_id=db_measurement.id,
-                                spc_rule_id=spc_rule.id,
-                                status="new",
-                                description=pattern.get("description", "SPC Rule 위반")
-                            )
-                            db.add(alert)
-                            alerts_added = True
-                            print(f"SPC Alert 생성: Rule {pattern['rule']} - {pattern.get('description')} - 측정 ID: {db_measurement.id}")
-            
-            # 새로운 알림이 추가된 경우에만 commit 실행
-            if alerts_added:
-                db.commit()
-    except Exception as e:
-        print(f"SPC 분석 중 오류 발생: {str(e)}")
-        # 기본 측정 프로세스는 계속 진행
     return db_measurement
 
 # backend/database/crud.py 파일의 get_measurements 함수 업데이트
@@ -551,17 +509,3 @@ def check_duplicate_measurement(db: Session, target_id: int, lot_no: str, wafer_
     ).first()
     
     return existing is not None
-
-def create_spc_alert(db: Session, measurement_id: int, spc_rule_id: int, description: str, status: str = "new"):
-    """
-    SPC Alert 생성
-    """
-    alert = models.SPCAlert(
-        measurement_id=measurement_id,
-        spc_rule_id=spc_rule_id,
-        status=status,
-        description=description
-    )
-    db.add(alert)
-    db.commit()
-    return alert

@@ -318,11 +318,6 @@ class API {
         
         return this.get(`${this.endpoints.BOXPLOT}/${targetId}`, params);
     }
-
-    // SPC 위반 내역 조회
-    async getSpcAlerts(params = {}) {
-        return this.get('/spc-alerts', params);
-    }
 }
 
 // API 인스턴스 생성

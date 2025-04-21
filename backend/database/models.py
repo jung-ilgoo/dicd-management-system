@@ -123,7 +123,6 @@ class Measurement(Base):
     exposure_equipment = relationship("Equipment", foreign_keys=[exposure_equipment_id], back_populates="exposure_measurements")
     development_equipment = relationship("Equipment", foreign_keys=[development_equipment_id], back_populates="development_measurements")
     
-    spc_alerts = relationship("SPCAlert", back_populates="measurement", cascade="all, delete-orphan")
 
 # SPC 규칙 테이블
 class SPCRule(Base):
@@ -138,7 +137,6 @@ class SPCRule(Base):
     
     # 관계 설정
     rule_changes = relationship("SPCRuleChange", back_populates="spc_rule", cascade="all, delete-orphan")
-    spc_alerts = relationship("SPCAlert", back_populates="spc_rule", cascade="all, delete-orphan")
 
 # SPC 규칙 변경 이력 테이블
 class SPCRuleChange(Base):
@@ -152,22 +150,6 @@ class SPCRuleChange(Base):
     
     # 관계 설정
     spc_rule = relationship("SPCRule", back_populates="rule_changes")
-
-# SPC 알람 테이블
-class SPCAlert(Base):
-    __tablename__ = "spc_alerts"
-
-    id = Column(Integer, primary_key=True, index=True)
-    measurement_id = Column(Integer, ForeignKey("measurements.id"), nullable=False)
-    spc_rule_id = Column(Integer, ForeignKey("spc_rules.id"), nullable=False)
-    status = Column(String(50), nullable=False, default="new")  # new, in_review, resolved, exception
-    description = Column(Text, nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    
-    # 관계 설정
-    measurement = relationship("Measurement", back_populates="spc_alerts")
-    spc_rule = relationship("SPCRule", back_populates="spc_alerts")
 
 # 보고서 테이블
 class Report(Base):
