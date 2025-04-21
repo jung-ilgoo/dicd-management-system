@@ -39,7 +39,7 @@ def detect_nelson_rules(values: List[float], cl: float, ucl: float, lcl: float, 
     """
     Nelson Rules에 기반한 패턴 감지
     """
-    if len(values) < 9:
+    if not values:  # 데이터가 비어있는 경우만 체크
         return []
     
     # 표준편차 계산 (UCL-CL)/3 (3-시그마 기준)
@@ -54,7 +54,7 @@ def detect_nelson_rules(values: List[float], cl: float, ucl: float, lcl: float, 
     # 결과 저장 리스트
     patterns = []
     
-    # Rule 1: 한 점이 관리 한계선을 벗어남
+    # Rule 1: 한 점이 관리 한계선을 벗어남 - 항상 검사
     for i, value in enumerate(values):
         if value > ucl or value < lcl:
             patterns.append({
@@ -64,6 +64,10 @@ def detect_nelson_rules(values: List[float], cl: float, ucl: float, lcl: float, 
                 "lot_no": lot_nos[i] if i < len(lot_nos) else f"포인트 {i+1}",
                 "value": value
             })
+    
+    # 데이터가 충분하지 않으면 나머지 규칙은 건너뜀
+    if len(values) < 9:
+        return patterns
     
     # Rule 2: 9개 연속 점이 중심선의 같은 쪽에 있음
     for i in range(len(values) - 8):
@@ -194,51 +198,6 @@ def analyze_spc(db: Session, target_id: int, days: int = 30, start_date: Optiona
             pos = pattern.get("position", 0)
             if 0 <= pos < len(lot_nos):
                 pattern["lot_no"] = lot_nos[pos]
-        
-        # 변경 후:
-        if patterns:
-            from ..services import notification_service
-            
-            # 알림 생성 개선 로직
-            # 타임스탬프 생성(날짜 기반 중복 방지용)
-            notification_date = datetime.now().strftime("%Y-%m-%d")
-            
-            # 패턴별 알림 생성
-            for pattern in patterns:
-                # 고유 식별자 생성: 타겟ID_규칙ID_날짜
-                rule_id = pattern["rule"]
-                violation_id = f"spc_{target_id}_{rule_id}_{notification_date}"
-                
-                # 오늘 이미 생성된 동일 규칙 알림이 있는지 확인
-                existing_notification = db.query(models.NotificationTracker).filter(
-                    models.NotificationTracker.violation_id == violation_id
-                ).first()
-                
-                # 이미 생성된 알림이 없으면 새로 생성
-                if not existing_notification:
-                    # 설명 구성 (LOT NO 포함)
-                    description = pattern["description"]
-                    if "lot_no" in pattern:
-                        description = f"{description} (LOT NO: {pattern['lot_no']})"
-                    
-                    # 알림 생성
-                    new_notification = notification_service.create_spc_rule_violation_notification(
-                        db=db,
-                        target_id=target_id,
-                        rule_id=rule_id,
-                        rule_name=f"Rule {rule_id}",
-                        description=description,
-                        measurement_ids=[measurements[-1].id] if measurements else None
-                    )
-                    
-                    # 알림 추적 정보 저장
-                    tracker = models.NotificationTracker(
-                        violation_id=violation_id,
-                        notification_id=new_notification.id,
-                        created_at=datetime.now()
-                    )
-                    db.add(tracker)
-                    db.commit()
     
     # 위치별 데이터도 분석
     position_values = {

@@ -24,7 +24,7 @@ def read_equipments(
     type: Optional[str] = Query(None, description="장비 타입으로 필터링 (코팅, 노광, 현상)"),
     db: Session = Depends(database.get_db)
 ):
-    equipments = crud.get_equipments(db, type=type, skip=skip, limit=limit)
+    equipments = crud.get_equipments(db, type=type)
     return equipments
 
 @router.get("/{equipment_id}", response_model=equipment.Equipment)

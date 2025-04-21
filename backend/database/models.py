@@ -196,34 +196,3 @@ class ReportRecipient(Base):
     
     # 관계 설정
     report = relationship("Report", back_populates="report_recipients")
-
-# 알림 테이블 (기존 models.py 파일에 추가)
-class Notification(Base):
-    __tablename__ = "notifications"
-
-    id = Column(Integer, primary_key=True, index=True)
-    type = Column(String(50), nullable=False)  # alert, warning, info 등
-    title = Column(String(255), nullable=False)
-    message = Column(Text, nullable=False)
-    is_read = Column(Boolean, default=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    
-    # 관련 데이터 참조 (선택적)
-    target_id = Column(Integer, ForeignKey("targets.id"), nullable=True)
-    measurement_id = Column(Integer, ForeignKey("measurements.id"), nullable=True)
-    
-    # 관계 설정
-    target = relationship("Target", backref="notifications")
-    measurement = relationship("Measurement", backref="notifications")
-
-# 알림 추적 테이블 (중복 알림 방지용)
-class NotificationTracker(Base):
-    __tablename__ = "notification_trackers"
-
-    id = Column(Integer, primary_key=True, index=True)
-    violation_id = Column(String(100), unique=True, index=True, nullable=False)  # 고유 위반 식별자
-    notification_id = Column(Integer, ForeignKey("notifications.id"))
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    
-    # 관계 설정
-    notification = relationship("Notification")

@@ -318,9 +318,6 @@ class API {
         
         return this.get(`${this.endpoints.BOXPLOT}/${targetId}`, params);
     }
-    async markNotificationAsRead(notificationId) {
-        return this.put(`${this.endpoints.NOTIFICATIONS}/${notificationId}/read`, {});
-    }
 }
 
 // API 인스턴스 생성

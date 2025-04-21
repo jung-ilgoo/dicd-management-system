@@ -747,6 +747,7 @@ function renderBoxPlot(data) {
                 x: {
                     type: 'category',
                     labels: ['측정값 분포'],
+                    offset: true, // ← 이게 중요!
                     grid: {
                         display: false
                     }
