@@ -12,9 +12,18 @@
     
     // 페이지 초기화
     async function initTrendPage() {
-        // 날짜 범위 선택기 초기화
-        initDateRangePicker();
+        // 날짜 범위 선택기 초기화 (삭제)
+        // initDateRangePicker(); 
         
+        // 다음 코드로 대체:
+        // 날짜 입력란 초기화
+        utils.initDateControls({
+            periodSelector: '#analysis-period',
+            containerSelector: '.date-range-container',
+            startDateSelector: '#start-date',
+            endDateSelector: '#end-date'
+        });
+
         // 제품군 목록 로드
         await loadProductGroups();
         
@@ -22,41 +31,6 @@
         setupEventListeners();
     }
     
-    // 날짜 범위 선택기 초기화
-    utils.initDateControls({
-        periodSelector: 'input[name="date-range"]',
-        containerSelector: '#date-range-picker-container',
-        startDateSelector: '#start-date',
-        endDateSelector: '#end-date',
-        onChange: function(periodType, startDate, endDate) {
-            dateRangeType = periodType;
-            customStartDate = startDate;
-            customEndDate = endDate;
-            
-            // 이미 타겟이 선택되어 있으면 데이터 다시 로드
-            if (selectedTargetId) {
-                analyzeTrend();
-            }
-        }
-    });
-    
-    // 제품군 목록 로드
-    async function loadProductGroups() {
-        try {
-            const productGroups = await api.getProductGroups();
-            
-            if (productGroups && productGroups.length > 0) {
-                let options = '<option value="">제품군 선택</option>';
-                productGroups.forEach(productGroup => {
-                    options += `<option value="${productGroup.id}">${productGroup.name}</option>`;
-                });
-                document.getElementById('product-group').innerHTML = options;
-            }
-            
-        } catch (error) {
-            console.error('제품군 목록 로드 실패:', error);
-        }
-    }
     
     // 공정 목록 로드
     async function loadProcesses(productGroupId) {
@@ -140,24 +114,15 @@
             </div>
             `;
             
-            // 일수 계산
-            let days = 30;
-            if (dateRangeType === 'last7') days = 7;
-            else if (dateRangeType === 'last30') days = 30;
-            else if (dateRangeType === 'last90') days = 90;
-            
             // API 요청 파라미터
-            const params = utils.prepareApiDateParams(dateRangeType, customStartDate, customEndDate);
-            
-            // 사용자 지정 날짜 범위인 경우
-            if (dateRangeType === 'custom' && customStartDate && customEndDate) {
-                params.start_date = customStartDate;
-                params.end_date = customEndDate;
-                delete params.days;
-            }
+            const params = utils.prepareApiDateParams(
+                $('#analysis-period').val(),
+                $('#start-date').val(),
+                $('#end-date').val()
+            );
             
             // 통계 API 호출
-            const statsResult = await api.getTargetStatistics(selectedTargetId, params.days);
+            const statsResult = await api.getTargetStatistics(selectedTargetId, params);
             currentStats = statsResult;
             
             // 측정 데이터 API 호출
@@ -551,25 +516,6 @@
         // 분석 버튼 클릭 이벤트
         document.getElementById('analyze-btn').addEventListener('click', function() {
             analyzeTrend();
-        });
-        
-        // 날짜 범위 라디오 버튼 변경 이벤트
-        document.querySelectorAll('input[name="date-range"]').forEach(radio => {
-            radio.addEventListener('change', function() {
-                dateRangeType = this.value;
-                
-                // 사용자 지정 날짜 선택기 표시/숨김
-                if (dateRangeType === 'custom') {
-                    $('#date-range-picker-container').show();
-                } else {
-                    $('#date-range-picker-container').hide();
-                }
-                
-                // 이미 타겟이 선택되어 있으면 데이터 다시 로드
-                if (selectedTargetId) {
-                    analyzeTrend();
-                }
-            });
         });
     }
     

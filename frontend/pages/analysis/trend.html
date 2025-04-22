@@ -205,35 +205,30 @@
                             
                             <div class="row">
                                 <!-- 기간 선택 -->
-                                <div class="col-md-6">
+                                <div class="col-md-4">
                                     <div class="form-group">
-                                        <label>분석 기간</label>
-                                        <div class="d-flex flex-wrap">
-                                            <div class="custom-control custom-radio mr-3">
-                                                <input class="custom-control-input" type="radio" id="date-range-7" name="date-range" value="last7">
-                                                <label for="date-range-7" class="custom-control-label">최근 7일</label>
-                                            </div>
-                                            <div class="custom-control custom-radio mr-3">
-                                                <input class="custom-control-input" type="radio" id="date-range-30" name="date-range" value="last30" checked>
-                                                <label for="date-range-30" class="custom-control-label">최근 30일</label>
-                                            </div>
-                                            <div class="custom-control custom-radio mr-3">
-                                                <input class="custom-control-input" type="radio" id="date-range-90" name="date-range" value="last90">
-                                                <label for="date-range-90" class="custom-control-label">최근 90일</label>
-                                            </div>
-                                            <div class="custom-control custom-radio">
-                                                <input class="custom-control-input" type="radio" id="date-range-custom" name="date-range" value="custom">
-                                                <label for="date-range-custom" class="custom-control-label">사용자 지정</label>
+                                        <label for="analysis-period">분석 기간</label>
+                                        <select class="form-control" id="analysis-period">
+                                            <option value="7">최근 7일</option>
+                                            <option value="14">최근 14일</option>
+                                            <option value="30" selected>최근 30일</option>
+                                            <option value="90">최근 90일</option>
+                                            <option value="custom">사용자 지정</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-8 date-range-container" style="display: none;">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label for="start-date">시작일</label>
+                                                <input type="date" class="form-control" id="start-date">
                                             </div>
                                         </div>
-                                        <div id="date-range-picker-container" class="mt-2" style="display: none;">
-                                            <div class="input-group">
-                                                <div class="input-group-prepend">
-                                                    <span class="input-group-text">
-                                                        <i class="far fa-calendar-alt"></i>
-                                                    </span>
-                                                </div>
-                                                <input type="text" class="form-control" id="date-range-picker">
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label for="end-date">종료일</label>
+                                                <input type="date" class="form-control" id="end-date">
                                             </div>
                                         </div>
                                     </div>
