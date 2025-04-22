@@ -230,7 +230,7 @@ def validate_measurement_data(df: pd.DataFrame, target_id: int) -> Tuple[List[Di
             })
         except Exception as e:
             errors.append({
-                "row": idx + 2,  # 헤더 포함하여 +2
+                "row": original_row,
                 "error": f"처리 중 오류 발생: {str(e)}"
             })
     

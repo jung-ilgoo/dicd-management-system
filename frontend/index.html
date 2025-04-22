@@ -91,12 +91,6 @@
                                         <p>보고서 조회</p>
                                     </a>
                                 </li>
-                                <li class="nav-item">
-                                    <a href="pages/reports/spc_alerts.html" class="nav-link">
-                                        <i class="far fa-circle nav-icon"></i>
-                                        <p>SPC 위반 조회</p>
-                                    </a>
-                                </li>
                             </ul>
                         </li>
                         <li class="nav-item">
@@ -146,6 +140,11 @@
                                 <div class="card-header">
                                     <h3 class="card-title"><i class="fas fa-th mr-1"></i> 공정능력지수 히트맵 <small id="cpk-heatmap-period" class="text-muted">(최근 14일)</small></h3>
                                     <div class="card-tools">
+                                        <div class="btn-group mr-2">
+                                            <button type="button" class="btn btn-sm btn-outline-primary active" id="period-14d">14일</button>
+                                            <button type="button" class="btn btn-sm btn-outline-primary" id="period-1m">1개월</button>
+                                            <button type="button" class="btn btn-sm btn-outline-primary" id="period-3m">3개월</button>
+                                        </div>
                                         <button type="button" class="btn btn-tool" data-card-widget="collapse">
                                             <i class="fas fa-minus"></i>
                                         </button>

@@ -131,15 +131,11 @@ def get_distribution_analysis(
     """
     특정 타겟에 대한 분포 분석 수행
     """
-    # 여기에 로깅 추가
-    print(f"Distribution analysis for target_id={target_id}, days={days}")
 
     # 시작 날짜와 종료 날짜 설정
     if not start_date:
         start_date = datetime.now() - timedelta(days=days)
 
-    # 여기에 로깅 추가
-    print(f"Start date: {start_date}, End date: {end_date}")
     
     # 측정 데이터 쿼리
     query = db.query(models.Measurement).filter(
@@ -155,8 +151,6 @@ def get_distribution_analysis(
     
     measurements = query.all()
 
-    # 여기에 로깅 추가
-    print(f"Found {len(measurements)} measurements for distribution analysis")
     
     if not measurements:
         return {

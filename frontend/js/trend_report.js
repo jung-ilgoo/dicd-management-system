@@ -1302,7 +1302,6 @@ $(document).on('change', '#targets-checklist-body input[type="checkbox"]', funct
     document.addEventListener('DOMContentLoaded', function() {
         // 전체 선택 체크박스에 직접 이벤트 리스너 추가
         $(document).on('click', '#check-all', function() {
-            console.log('전체 선택 체크박스 클릭됨:', this.checked);
             // 모든 개별 체크박스에 같은 체크 상태 적용
             $('#targets-checklist-body input[type="checkbox"]').prop('checked', this.checked);
             
@@ -1312,7 +1311,6 @@ $(document).on('change', '#targets-checklist-body input[type="checkbox"]', funct
         
         // 개별 체크박스 변경 이벤트
         $(document).on('change', '#targets-checklist-body input[type="checkbox"]', function() {
-            console.log('개별 체크박스 변경됨');
             // 전체 체크박스 상태 업데이트
             updateCheckAllStatus();
             
@@ -1323,11 +1321,8 @@ $(document).on('change', '#targets-checklist-body input[type="checkbox"]', funct
 
     // 전체 선택 체크박스 상태 업데이트 함수
     function updateCheckAllStatus() {
-        console.log('전체 선택 상태 업데이트');
         const totalCheckboxes = $('#targets-checklist-body input[type="checkbox"]').length;
         const checkedCount = $('#targets-checklist-body input[type="checkbox"]:checked').length;
-        
-        console.log(`체크박스 상태: ${checkedCount}/${totalCheckboxes}`);
         
         // 모든 체크박스가 체크되어 있으면 전체 선택도 체크
         $('#check-all').prop('checked', totalCheckboxes > 0 && checkedCount === totalCheckboxes);
@@ -1335,7 +1330,6 @@ $(document).on('change', '#targets-checklist-body input[type="checkbox"]', funct
 
     // 모달이 열릴 때 이벤트에 추가
     $('#add-targets-modal').on('shown.bs.modal', function() {
-        console.log('모달이 열림');
         // 모달이 완전히 표시된 후 체크박스 상태 초기화
         setTimeout(function() {
             // 1. 전체 선택 체크박스 초기화
@@ -1343,7 +1337,6 @@ $(document).on('change', '#targets-checklist-body input[type="checkbox"]', funct
             
             // 2. 선택된 타겟 ID 목록 가져오기
             const selectedTargetIds = targetManager.getAllTargets().map(t => t.targetId);
-            console.log('선택된 타겟 IDs:', selectedTargetIds);
             
             // 3. 타겟 체크박스 상태 설정
             $('#targets-checklist-body input[type="checkbox"]').each(function() {
@@ -1394,8 +1387,6 @@ async function loadChart(targetInfo, startDate, endDate) {
         // 현재 선택된 날짜 범위 가져오기
         const dateRangeValue = document.getElementById('date-range').value;
         const [startDateStr, endDateStr] = dateRangeValue.split(' - ');
-        
-        console.log(`Loading charts with date range: ${startDateStr} to ${endDateStr}`);
         
         // 로딩 표시
         document.getElementById('loading-indicator').style.display = 'block';

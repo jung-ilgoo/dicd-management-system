@@ -2,6 +2,7 @@
 let cpkHeatmapData = [];
 let monitoringCharts = [];
 let monitoringTargets = [];
+let currentPeriodDays = 14; // 기본값은 14일
 
 // 초기화 함수
 function initDashboard() {
@@ -33,6 +34,24 @@ function setupEventListeners() {
         saveMonitoringTargets();
     });
     
+    document.getElementById('period-14d').addEventListener('click', function() {
+        setActivePeriodButton(this);
+        currentPeriodDays = 14;
+        loadCpkHeatmap();
+    });
+    
+    document.getElementById('period-1m').addEventListener('click', function() {
+        setActivePeriodButton(this);
+        currentPeriodDays = 30;
+        loadCpkHeatmap();
+    });
+    
+    document.getElementById('period-3m').addEventListener('click', function() {
+        setActivePeriodButton(this);
+        currentPeriodDays = 90;
+        loadCpkHeatmap();
+    });
+
     // 제품군 선택 이벤트 (타겟 1, 2, 3)
     for (let i = 1; i <= 3; i++) {
         document.getElementById(`target${i}-product-group`).addEventListener('change', function() {
@@ -46,15 +65,30 @@ function setupEventListeners() {
         });
     }
 }
+// 추가할 코드 - 새로운 함수
+// 기간 버튼 활성화 상태 설정
+function setActivePeriodButton(activeButton) {
+    // 모든 기간 버튼에서 활성화 클래스 제거
+    document.querySelectorAll('.card-tools .btn-group .btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // 클릭한 버튼만 활성화 클래스 추가
+    activeButton.classList.add('active');
+    
+    // 기간 표시 텍스트 업데이트
+    let periodText = '';
+    if (activeButton.id === 'period-14d') periodText = '(최근 14일)';
+    else if (activeButton.id === 'period-1m') periodText = '(최근 1개월)';
+    else if (activeButton.id === 'period-3m') periodText = '(최근 3개월)';
+    
+    document.getElementById('cpk-heatmap-period').textContent = periodText;
+}
 
 // 기존 loadCpkHeatmap 함수를 아래 코드로 교체
 async function loadCpkHeatmap() {
     try {
-        // 히트맵 기간 설정 (백엔드 기본값과 일치시킴)
-        const heatmapDays = 14;
-        
-        // 히트맵 기간 표시 업데이트
-        document.getElementById('cpk-heatmap-period').textContent = `(최근 ${heatmapDays}일)`;
+        const heatmapDays = currentPeriodDays;
 
         // 로딩 표시
         document.getElementById('cpk-heatmap-container').innerHTML = `
@@ -107,7 +141,7 @@ async function loadCpkHeatmap() {
             result.targets.forEach(target => {
                 // 통계 정보 가져오기 (비동기)
                 statisticsPromises.push(
-                    api.getTargetStatistics(target.id)
+                    api.getTargetStatistics(target.id, currentPeriodDays)
                         .then(stats => ({ targetId: target.id, stats }))
                         .catch(error => {
                             console.warn(`타겟 ${target.id}에 대한 통계 정보를 가져올 수 없습니다.`, error);

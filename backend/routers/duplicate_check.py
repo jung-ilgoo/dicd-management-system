@@ -19,8 +19,5 @@ async def check_duplicate_measurement(
     existing = crud.check_duplicate_measurement(
         db, target_id=target_id, lot_no=lot_no, wafer_no=wafer_no
     )
-    existing = crud.check_duplicate_measurement(
-        db, target_id=target_id, lot_no=lot_no, wafer_no=wafer_no
-    )
     
     return {"isDuplicate": existing}
