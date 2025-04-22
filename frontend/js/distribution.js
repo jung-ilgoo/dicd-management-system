@@ -64,20 +64,11 @@ function registerEventListeners() {
     });
     
     // 분석 기간 선택 변경시
-    $('#analysis-period').on('change', function() {
-        const period = $(this).val();
-        if (period === 'custom') {
-            $('#custom-date-range').show();
-            // 기본값으로 오늘 날짜와 30일 전 날짜 설정
-            const today = new Date();
-            const thirtyDaysAgo = new Date();
-            thirtyDaysAgo.setDate(today.getDate() - 30);
-            
-            $('#end-date').val(formatDateForInput(today));
-            $('#start-date').val(formatDateForInput(thirtyDaysAgo));
-        } else {
-            $('#custom-date-range').hide();
-        }
+    utils.initDateControls({
+        periodSelector: '#analysis-period',
+        containerSelector: '#custom-date-range',
+        startDateSelector: '#start-date',
+        endDateSelector: '#end-date'
     });
 
     // 위치 다이어그램에서 위치 선택시
@@ -94,14 +85,6 @@ function registerEventListeners() {
         selectedPosition = position;
         updatePositionChart();
     });
-}
-
-// formatDateForInput 함수 추가 (registerEventListeners 함수 바깥에)
-function formatDateForInput(date) {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
 }
 
 // 제품군 목록 가져오기
@@ -167,44 +150,24 @@ async function runDistributionAnalysis(targetId, days) {
         currentTarget = $('#target option:selected').text();
         
         // 사용자 지정 기간 처리
-        let analysisParams = {};
+        let analysisParams = utils.prepareApiDateParams(
+            days,
+            $('#start-date').val(),
+            $('#end-date').val()
+        );
+
+        // 날짜 범위 계산
+        const dateRange = utils.calculateDateRange(
+            days === 'custom' ? 'custom' : days,
+            $('#start-date').val(),
+            $('#end-date').val()
+        );
+
+        // 제목 업데이트
         let periodTitle = '';
-        
         if (days === 'custom') {
-            const startDate = $('#start-date').val();
-            const endDate = $('#end-date').val();
-            
-            if (!startDate || !endDate) {
-                alert('시작 날짜와 종료 날짜를 모두 선택해주세요.');
-                hideLoading();
-                $('#initial-message').show();
-                return;
-            }
-            
-            // 날짜 유효성 검사
-            const start = new Date(startDate);
-            const end = new Date(endDate);
-            
-            if (start > end) {
-                alert('시작 날짜는 종료 날짜보다 이전이어야 합니다.');
-                hideLoading();
-                $('#initial-message').show();
-                return;
-            }
-            
-            analysisParams = {
-                start_date: startDate,
-                end_date: endDate
-            };
-            
-            const startDateObj = new Date(startDate);
-            const endDateObj = new Date(endDate);
-            const timeDiff = Math.abs(endDateObj - startDateObj);
-            const diffDays = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
-            
-            periodTitle = `${startDate} ~ ${endDate} (${diffDays}일)`;
+            periodTitle = `${dateRange.startDate} ~ ${dateRange.endDate} (${dateRange.days}일)`;
         } else {
-            analysisParams = { days: days };
             periodTitle = `최근 ${days}일`;
         }
         

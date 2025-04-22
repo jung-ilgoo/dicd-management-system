@@ -20,22 +20,13 @@ $(document).ready(function() {
         }
     });
     
-    // 사용자 지정 기간 드롭다운 이벤트 처리
-    $('#days-select').on('change', function() {
-        if ($(this).val() === 'custom') {
-            $('#custom-date-container').show();
-        } else {
-            $('#custom-date-container').hide();
-        }
+    // 날짜 입력란 초기화
+    utils.initDateControls({
+        periodSelector: '#days-select',
+        containerSelector: '#custom-date-container',
+        startDateSelector: '#start-date',
+        endDateSelector: '#end-date'
     });
-    
-    // 날짜 입력란에 오늘 날짜와 30일 전 날짜 기본값 설정
-    const today = new Date();
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(today.getDate() - 30);
-    
-    $('#end-date').val(today.toISOString().split('T')[0]);
-    $('#start-date').val(thirtyDaysAgo.toISOString().split('T')[0]);
     
     // 페이지 초기화
     initPage();
@@ -209,37 +200,17 @@ async function performAnalysis() {
         showLoading();
         
         // 백엔드 API 호출 파라미터 설정
-        let params = {};
+        const dateParams = utils.prepareApiDateParams(
+            daysSelect,
+            $('#start-date').val(),
+            $('#end-date').val()
+        );
         
-        if (daysSelect === 'custom') {
-            // 사용자 지정 날짜 사용
-            const startDate = $('#start-date').val();
-            const endDate = $('#end-date').val();
-            
-            if (!startDate || !endDate) {
-                hideLoading();
-                showAlert('시작 날짜와 종료 날짜를 모두 입력해주세요.', 'warning');
-                return;
-            }
-            
-            if (new Date(startDate) > new Date(endDate)) {
-                hideLoading();
-                showAlert('시작 날짜는 종료 날짜보다 이전이어야 합니다.', 'warning');
-                return;
-            }
-            
-            params = {
-                group_by: groupBy,
-                start_date: startDate,
-                end_date: endDate
-            };
-        } else {
-            // 일수 기준 사용
-            params = {
-                group_by: groupBy,
-                days: daysSelect
-            };
-        }
+        // group_by 파라미터 추가
+        const params = {
+            ...dateParams,
+            group_by: groupBy
+        };
         
         // 박스플롯 API 호출
         const boxplotData = await api.getBoxplotData(targetId, groupBy, params);

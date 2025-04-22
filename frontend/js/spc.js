@@ -6,15 +6,6 @@
     let selectedProcessId = null;
     let selectedTargetId = null;
     let rChart = null; // 추가: R 차트 변수
-
-    // 날짜를 input[type="date"]에 사용할 형식(YYYY-MM-DD)으로 변환
-    function formatDateForInput(date) {
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
-    }
-    
     
     // 페이지 초기화
     async function initSpcPage() {
@@ -241,7 +232,11 @@
             `;
 
             // API 호출 파라미터 준비
-            let apiParams = { days: days };
+            let apiParams = utils.prepareApiDateParams(
+                $('#analysis-period').val(),
+                $('#start-date').val(),
+                $('#end-date').val()
+            );
             
             // 사용자 지정 기간인 경우 시작일/종료일 추가
             if (periodSelect.value === 'custom') {
@@ -1105,45 +1100,11 @@ function resetPatternHighlight() {
         });
 
         // 분석 기간 선택 변경 이벤트
-        document.getElementById('analysis-period').addEventListener('change', function() {
-            const dateRangeContainer = document.querySelector('.date-range-container');
-            
-            if (this.value === 'custom') {
-                dateRangeContainer.style.display = 'block';
-                
-                // 기본값 설정 (오늘부터 30일 전까지)
-                const today = new Date();
-                const thirtyDaysAgo = new Date();
-                thirtyDaysAgo.setDate(today.getDate() - 30);
-                
-                // YYYY-MM-DD 형식으로 변환
-                document.getElementById('end-date').value = formatDateForInput(today);
-                document.getElementById('start-date').value = formatDateForInput(thirtyDaysAgo);
-            } else {
-                dateRangeContainer.style.display = 'none';
-            }
-        });
-
-        // 날짜 선택 이벤트 (시작일이 종료일보다 이후면 자동 조정)
-        document.getElementById('start-date').addEventListener('change', function() {
-            const startDate = new Date(this.value);
-            const endDateEl = document.getElementById('end-date');
-            const endDate = new Date(endDateEl.value);
-            
-            if (startDate > endDate) {
-                endDateEl.value = this.value;
-            }
-        });
-
-        // 날짜 선택 이벤트 (종료일이 시작일보다 이전이면 자동 조정)
-        document.getElementById('end-date').addEventListener('change', function() {
-            const endDate = new Date(this.value);
-            const startDateEl = document.getElementById('start-date');
-            const startDate = new Date(startDateEl.value);
-            
-            if (endDate < startDate) {
-                startDateEl.value = this.value;
-            }
+        utils.initDateControls({
+            periodSelector: '#analysis-period',
+            containerSelector: '.date-range-container',
+            startDateSelector: '#start-date',
+            endDateSelector: '#end-date'
         });
     }
     

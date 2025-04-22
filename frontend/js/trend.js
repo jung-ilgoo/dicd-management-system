@@ -23,45 +23,22 @@
     }
     
     // 날짜 범위 선택기 초기화
-    function initDateRangePicker() {
-        $('#date-range-picker').daterangepicker({
-            startDate: moment().subtract(29, 'days'),
-            endDate: moment(),
-            locale: {
-                format: 'YYYY-MM-DD',
-                separator: ' ~ ',
-                applyLabel: '적용',
-                cancelLabel: '취소',
-                fromLabel: '시작일',
-                toLabel: '종료일',
-                customRangeLabel: '사용자 지정',
-                weekLabel: '주',
-                daysOfWeek: ['일', '월', '화', '수', '목', '금', '토'],
-                monthNames: ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'],
-                firstDay: 0
-            },
-            ranges: {
-                '오늘': [moment(), moment()],
-                '어제': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
-                '최근 7일': [moment().subtract(6, 'days'), moment()],
-                '최근 30일': [moment().subtract(29, 'days'), moment()],
-                '이번 달': [moment().startOf('month'), moment().endOf('month')],
-                '지난 달': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
-            }
-        }, function(start, end, label) {
-            customStartDate = start.format('YYYY-MM-DD');
-            customEndDate = end.format('YYYY-MM-DD');
-            dateRangeType = 'custom';
+    utils.initDateControls({
+        periodSelector: 'input[name="date-range"]',
+        containerSelector: '#date-range-picker-container',
+        startDateSelector: '#start-date',
+        endDateSelector: '#end-date',
+        onChange: function(periodType, startDate, endDate) {
+            dateRangeType = periodType;
+            customStartDate = startDate;
+            customEndDate = endDate;
             
             // 이미 타겟이 선택되어 있으면 데이터 다시 로드
             if (selectedTargetId) {
                 analyzeTrend();
             }
-        });
-        
-        // 기본적으로 날짜 선택기 숨김
-        $('#date-range-picker-container').hide();
-    }
+        }
+    });
     
     // 제품군 목록 로드
     async function loadProductGroups() {
@@ -170,7 +147,7 @@
             else if (dateRangeType === 'last90') days = 90;
             
             // API 요청 파라미터
-            const params = { days };
+            const params = utils.prepareApiDateParams(dateRangeType, customStartDate, customEndDate);
             
             // 사용자 지정 날짜 범위인 경우
             if (dateRangeType === 'custom' && customStartDate && customEndDate) {
