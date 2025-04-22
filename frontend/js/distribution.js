@@ -11,21 +11,19 @@ let selectedPosition = 'center'; // 기본값은 center
 
 // DOM이 로드된 후 실행
 $(document).ready(function() {
-    // 페이지 초기화
-    initPage();
-    
-    // 이벤트 리스너 등록
-    registerEventListeners();
+    initDistributionPage();
+    setupEventListeners();
+    initDateControls();
 });
 
 // 페이지 초기화 함수
-function initPage() {
+function initDistributionPage() {
     // 제품군 목록 가져오기
     fetchProductGroups();
 }
 
 // 이벤트 리스너 등록 함수
-function registerEventListeners() {
+function setupEventListeners() {
     // 제품군 선택 변경시
     $('#product-group').on('change', function() {
         const productGroupId = $(this).val();

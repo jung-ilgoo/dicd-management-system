@@ -166,16 +166,16 @@ function prepareApiDateParams(periodType, startDate, endDate) {
         let days = 30; // 기본값
         
         switch (periodType) {
-            case 'last7':
+            case '7':
                 days = 7;
                 break;
-            case 'last14':
+            case '14':
                 days = 14;
                 break;
-            case 'last30':
+            case '30':
                 days = 30;
                 break;
-            case 'last90':
+            case '90':
                 days = 90;
                 break;
         }

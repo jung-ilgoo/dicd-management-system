@@ -189,8 +189,12 @@ class API {
     }
     
     // 통계 관련 메서드
-    async getTargetStatistics(targetId, days = 14) {
-        return this.get(`${this.endpoints.STATISTICS}/target/${targetId}`, { days });
+    async getTargetStatistics(targetId, params) {
+        // params가 숫자인 경우 days로 처리 (이전 버전 호환성)
+        if (typeof params === 'number') {
+            params = { days: params };
+        }
+        return this.get(`${this.endpoints.STATISTICS}/target/${targetId}`, params);
     }
     
     // 보고서 관련 메서드

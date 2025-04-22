@@ -5,13 +5,38 @@ let boxplotChart = null;
 $(document).ready(function() {
     // 제품군 목록 로드
     loadProductGroups();
+    setupEventListeners();
+    initDateControls();
     
-    // 이벤트 리스너 등록
+    // URL에서 파라미터 가져오기
+    const urlParams = new URLSearchParams(window.location.search);
+    const targetId = urlParams.get('target_id');
+    
+    if (targetId) {
+        // 타겟 ID가 URL에 있으면 해당 타겟 정보 가져오기
+        loadTargetInfo(targetId);
+    }
+});
+
+// 페이지 초기화
+function initBoxplotPage() {
+    // URL에서 파라미터 가져오기
+    const urlParams = new URLSearchParams(window.location.search);
+    const targetId = urlParams.get('target_id');
+    
+    if (targetId) {
+        // 타겟 ID가 URL에 있으면 해당 타겟 정보 가져오기
+        loadTargetInfo(targetId);
+    }
+}
+
+// 이벤트 리스너 등록 함수
+function setupEventListeners() {
+    // 제품군 선택 변경시
     $('#product-group-select').on('change', handleProductGroupChange);
     $('#process-select').on('change', handleProcessChange);
     $('#target-select').on('change', handleTargetChange);
     $('#analyze-btn').on('click', performAnalysis);
-    $('#reset-btn').on('click', resetFilters);
     
     // 폼 요소 변경 감지
     $('input[name="group-by"]').on('change', function() {
@@ -27,21 +52,6 @@ $(document).ready(function() {
         startDateSelector: '#start-date',
         endDateSelector: '#end-date'
     });
-    
-    // 페이지 초기화
-    initPage();
-});
-
-// 페이지 초기화
-function initPage() {
-    // URL에서 파라미터 가져오기
-    const urlParams = new URLSearchParams(window.location.search);
-    const targetId = urlParams.get('target_id');
-    
-    if (targetId) {
-        // 타겟 ID가 URL에 있으면 해당 타겟 정보 가져오기
-        loadTargetInfo(targetId);
-    }
 }
 
 // 타겟 정보 가져오기
@@ -105,15 +115,19 @@ function waitForElement(selector) {
 // 제품군 목록 로드
 async function loadProductGroups() {
     try {
+        console.log('제품군 목록 로드 시작');
         const productGroups = await api.getProductGroups();
+        console.log('제품군 목록:', productGroups);
         
         // 제품군 옵션 생성
         const $select = $('#product-group-select');
+        console.log('제품군 select 요소:', $select);
         $select.find('option:not(:first)').remove();
         
         productGroups.forEach(group => {
             $select.append(`<option value="${group.id}">${group.name}</option>`);
         });
+        console.log('제품군 옵션 추가 완료');
     } catch (error) {
         console.error('제품군 로딩 오류:', error);
         showAlert('제품군 목록을 가져오는데 실패했습니다.', 'danger');
@@ -264,37 +278,6 @@ function showLoading() {
 // 로딩 숨기기
 function hideLoading() {
     // 아무 작업 안함 - 차트 렌더링 시 덮어씌워짐
-}
-
-// 필터 초기화
-function resetFilters() {
-    $('#product-group-select').val('').trigger('change');
-    $('#process-select').val('').prop('disabled', true);
-    $('#target-select').val('').prop('disabled', true);
-    $('#days-select').val('30');
-    $('#group-by-equipment').prop('checked', true).parent().addClass('active');
-    $('#group-by-device').prop('checked', false).parent().removeClass('active');
-    $('#analyze-btn').prop('disabled', true);
-    
-    // 차트 컨테이너 초기화
-    $('#boxplot-container').html(`
-        <p class="text-muted text-center py-5">
-            상단의 필터 조건을 설정하고 분석 수행 버튼을 클릭하세요.
-        </p>
-    `);
-    
-    // 통계 테이블 초기화
-    $('#stats-table tbody').html(`
-        <tr>
-            <td colspan="8" class="text-center text-muted">데이터가 없습니다.</td>
-        </tr>
-    `);
-    
-    // 기존 차트 제거
-    if (boxplotChart) {
-        boxplotChart.destroy();
-        boxplotChart = null;
-    }
 }
 
 function renderSimpleBoxPlot(data) {

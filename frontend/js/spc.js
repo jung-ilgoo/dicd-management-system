@@ -10,10 +10,7 @@
     // 페이지 초기화
     async function initSpcPage() {
         // 제품군 목록 로드
-        await loadProductGroups();
-        
-        // 이벤트 리스너 설정
-        setupEventListeners();
+        await fetchProductGroups();
         
         // URL 파라미터에서 타겟 정보 확인
         const urlParams = new URLSearchParams(window.location.search);
@@ -58,7 +55,7 @@
             
             // 공정 목록 로드 후 선택
             if (selectedProductGroupId) {
-                await loadProcesses(selectedProductGroupId);
+                await fetchProcesses(selectedProductGroupId);
                 const processSelect = document.getElementById('process');
                 for (let i = 0; i < processSelect.options.length; i++) {
                     if (processSelect.options[i].text === targetInfo.process) {
@@ -71,7 +68,7 @@
             
             // 타겟 목록 로드 후 선택
             if (selectedProcessId) {
-                await loadTargets(selectedProcessId);
+                await fetchTargets(selectedProcessId);
                 const targetSelect = document.getElementById('target');
                 for (let i = 0; i < targetSelect.options.length; i++) {
                     if (targetSelect.options[i].text === targetInfo.targetName) {
@@ -101,7 +98,7 @@
     }
     
     // 제품군 목록 로드
-    async function loadProductGroups() {
+    async function fetchProductGroups() {
         try {
             const productGroups = await api.getProductGroups();
             
@@ -119,7 +116,7 @@
     }
     
     // 공정 목록 로드
-    async function loadProcesses(productGroupId) {
+    async function fetchProcesses(productGroupId) {
         try {
             document.getElementById('process').innerHTML = '<option value="">로딩 중...</option>';
             document.getElementById('process').disabled = true;
@@ -146,7 +143,7 @@
     }
     
     // 타겟 목록 로드
-    async function loadTargets(processId) {
+    async function fetchTargets(processId) {
         try {
             document.getElementById('target').innerHTML = '<option value="">로딩 중...</option>';
             document.getElementById('target').disabled = true;
@@ -882,179 +879,179 @@
     }
     
     // updatePatternsTable 함수에 클릭 이벤트를 추가
-function updatePatternsTable(patterns) {
-    // 테이블 업데이트
-    const tableBody = document.querySelector('#patterns-table tbody');
-    
-    if (!patterns || patterns.length === 0) {
-        tableBody.innerHTML = `
-        <tr>
-            <td colspan="4" class="text-center">패턴 감지 데이터가 없습니다.</td>
-        </tr>
-        `;
-        return;
-    }
-    
-    let tableHtml = '';
-    
-    patterns.forEach((pattern, index) => {
-        // 위치 대신 LOT NO를 표시 (backend에서 전달한 경우)
-        const lotNoDisplay = pattern.lot_no || `LOT ${pattern.position + 1}`;
+    function updatePatternsTable(patterns) {
+        // 테이블 업데이트
+        const tableBody = document.querySelector('#patterns-table tbody');
         
-        tableHtml += `
-        <tr data-pattern-index="${index}" class="pattern-row" style="cursor: pointer;">
-            <td>Rule ${pattern.rule}</td>
-            <td>${pattern.description}</td>
-            <td>${lotNoDisplay}</td>
-            <td>${pattern.value ? pattern.value.toFixed(3) : (pattern.length ? `길이: ${pattern.length}` : '-')}</td>
-        </tr>
-        `;
-    });
-    
-    tableBody.innerHTML = tableHtml;
-    
-    // 패턴 행 클릭 이벤트 추가
-    document.querySelectorAll('.pattern-row').forEach(row => {
-        row.addEventListener('click', function() {
-            const patternIndex = parseInt(this.getAttribute('data-pattern-index'));
-            highlightPattern(patterns[patternIndex]);
+        if (!patterns || patterns.length === 0) {
+            tableBody.innerHTML = `
+            <tr>
+                <td colspan="4" class="text-center">패턴 감지 데이터가 없습니다.</td>
+            </tr>
+            `;
+            return;
+        }
+        
+        let tableHtml = '';
+        
+        patterns.forEach((pattern, index) => {
+            // 위치 대신 LOT NO를 표시 (backend에서 전달한 경우)
+            const lotNoDisplay = pattern.lot_no || `LOT ${pattern.position + 1}`;
             
-            // 선택된 행 강조
-            document.querySelectorAll('.pattern-row').forEach(r => r.classList.remove('table-primary'));
-            this.classList.add('table-primary');
+            tableHtml += `
+            <tr data-pattern-index="${index}" class="pattern-row" style="cursor: pointer;">
+                <td>Rule ${pattern.rule}</td>
+                <td>${pattern.description}</td>
+                <td>${lotNoDisplay}</td>
+                <td>${pattern.value ? pattern.value.toFixed(3) : (pattern.length ? `길이: ${pattern.length}` : '-')}</td>
+            </tr>
+            `;
         });
-    });
-}
+        
+        tableBody.innerHTML = tableHtml;
+        
+        // 패턴 행 클릭 이벤트 추가
+        document.querySelectorAll('.pattern-row').forEach(row => {
+            row.addEventListener('click', function() {
+                const patternIndex = parseInt(this.getAttribute('data-pattern-index'));
+                highlightPattern(patterns[patternIndex]);
+                
+                // 선택된 행 강조
+                document.querySelectorAll('.pattern-row').forEach(r => r.classList.remove('table-primary'));
+                this.classList.add('table-primary');
+            });
+        });
+    }
 
-// 패턴 강조 함수 추가
-function highlightPattern(pattern) {
-    if (!controlChart) return;
-    
-    // 기존 데이터셋 상태 저장
-    const originalDatasets = JSON.parse(JSON.stringify(controlChart.data.datasets));
-    
-    // 데이터셋 초기화 (기존 강조 제거)
-    controlChart.data.datasets = originalDatasets.filter(ds => !ds.patternHighlight);
-    
-    // 패턴 유형에 따라 강조 방식 결정
-    const highlightData = Array(controlChart.data.labels.length).fill(null);
-    let positions = [];
-    
-    switch (pattern.rule) {
-        case 1: // 한 점이 관리 한계선을 벗어남
-            positions = [pattern.position];
-            break;
-        case 2: // 9개 연속 점이 중심선의 같은 쪽에 있음
-            positions = Array.from({length: 9}, (_, i) => pattern.position + i);
-            break;
-        case 3: // 6개 연속 점이 증가하거나 감소함
-            positions = Array.from({length: 6}, (_, i) => pattern.position + i);
-            break;
-        case 4: // 14개 연속 점이 교대로 증가/감소함
-            positions = Array.from({length: 14}, (_, i) => pattern.position + i);
-            break;
-        case 5: // 2점 중 2점이 3-시그마 구간의 같은 쪽에 있음 (Zone A)
-            positions = Array.from({length: 2}, (_, i) => pattern.position + i);
-            break;
-        case 6: // 4점 중 4점이 2-시그마 구간의 같은 쪽에 있음 (Zone B)
-            positions = Array.from({length: 4}, (_, i) => pattern.position + i);
-            break;
-        case 7: // 15개 연속 점이 1-시그마 구간 안에 있음 (Zone C)
-            positions = Array.from({length: 15}, (_, i) => pattern.position + i);
-            break;
-        case 8: // 8개 연속 점이 1-시그마 구간 바깥에 있음
-            positions = Array.from({length: 8}, (_, i) => pattern.position + i);
-            break;
+    // 패턴 강조 함수 추가
+    function highlightPattern(pattern) {
+        if (!controlChart) return;
+        
+        // 기존 데이터셋 상태 저장
+        const originalDatasets = JSON.parse(JSON.stringify(controlChart.data.datasets));
+        
+        // 데이터셋 초기화 (기존 강조 제거)
+        controlChart.data.datasets = originalDatasets.filter(ds => !ds.patternHighlight);
+        
+        // 패턴 유형에 따라 강조 방식 결정
+        const highlightData = Array(controlChart.data.labels.length).fill(null);
+        let positions = [];
+        
+        switch (pattern.rule) {
+            case 1: // 한 점이 관리 한계선을 벗어남
+                positions = [pattern.position];
+                break;
+            case 2: // 9개 연속 점이 중심선의 같은 쪽에 있음
+                positions = Array.from({length: 9}, (_, i) => pattern.position + i);
+                break;
+            case 3: // 6개 연속 점이 증가하거나 감소함
+                positions = Array.from({length: 6}, (_, i) => pattern.position + i);
+                break;
+            case 4: // 14개 연속 점이 교대로 증가/감소함
+                positions = Array.from({length: 14}, (_, i) => pattern.position + i);
+                break;
+            case 5: // 2점 중 2점이 3-시그마 구간의 같은 쪽에 있음 (Zone A)
+                positions = Array.from({length: 2}, (_, i) => pattern.position + i);
+                break;
+            case 6: // 4점 중 4점이 2-시그마 구간의 같은 쪽에 있음 (Zone B)
+                positions = Array.from({length: 4}, (_, i) => pattern.position + i);
+                break;
+            case 7: // 15개 연속 점이 1-시그마 구간 안에 있음 (Zone C)
+                positions = Array.from({length: 15}, (_, i) => pattern.position + i);
+                break;
+            case 8: // 8개 연속 점이 1-시그마 구간 바깥에 있음
+                positions = Array.from({length: 8}, (_, i) => pattern.position + i);
+                break;
+        }
+        
+        // 유효한 위치만 필터링 (배열 범위를 벗어나는 위치 제거)
+        positions = positions.filter(pos => pos >= 0 && pos < controlChart.data.labels.length);
+        
+        // 강조할 위치 데이터 설정
+        positions.forEach(pos => {
+            highlightData[pos] = controlChart.data.datasets[0].data[pos];
+        });
+        
+        // 강조 데이터셋 추가
+        controlChart.data.datasets.push({
+            label: '강조된 패턴',
+            data: highlightData,
+            borderColor: '#dc3545',
+            backgroundColor: '#dc3545',
+            pointRadius: 8,
+            pointHoverRadius: 10,
+            pointStyle: 'circle',
+            borderWidth: 3,
+            fill: false,
+            showLine: false,
+            patternHighlight: true
+        });
+        
+        // 패턴 설명 영역 표시
+        showPatternExplanation(pattern, positions);
+        
+        // 차트 업데이트
+        controlChart.update();
     }
-    
-    // 유효한 위치만 필터링 (배열 범위를 벗어나는 위치 제거)
-    positions = positions.filter(pos => pos >= 0 && pos < controlChart.data.labels.length);
-    
-    // 강조할 위치 데이터 설정
-    positions.forEach(pos => {
-        highlightData[pos] = controlChart.data.datasets[0].data[pos];
-    });
-    
-    // 강조 데이터셋 추가
-    controlChart.data.datasets.push({
-        label: '강조된 패턴',
-        data: highlightData,
-        borderColor: '#dc3545',
-        backgroundColor: '#dc3545',
-        pointRadius: 8,
-        pointHoverRadius: 10,
-        pointStyle: 'circle',
-        borderWidth: 3,
-        fill: false,
-        showLine: false,
-        patternHighlight: true
-    });
-    
-    // 패턴 설명 영역 표시
-    showPatternExplanation(pattern, positions);
-    
-    // 차트 업데이트
-    controlChart.update();
-}
 
-// 패턴 설명 영역 표시 함수
-function showPatternExplanation(pattern, positions) {
-    // 패턴 설명 컨테이너 찾기 (없으면 생성)
-    let patternExplanationEl = document.querySelector('#pattern-explanation');
-    
-    if (!patternExplanationEl) {
-        patternExplanationEl = document.createElement('div');
-        patternExplanationEl.id = 'pattern-explanation';
-        patternExplanationEl.className = 'alert alert-info mt-3';
-        document.querySelector('#control-chart-container').after(patternExplanationEl);
+    // 패턴 설명 영역 표시 함수
+    function showPatternExplanation(pattern, positions) {
+        // 패턴 설명 컨테이너 찾기 (없으면 생성)
+        let patternExplanationEl = document.querySelector('#pattern-explanation');
+        
+        if (!patternExplanationEl) {
+            patternExplanationEl = document.createElement('div');
+            patternExplanationEl.id = 'pattern-explanation';
+            patternExplanationEl.className = 'alert alert-info mt-3';
+            document.querySelector('#control-chart-container').after(patternExplanationEl);
+        }
+        
+        // 시그마 구간 설명 준비
+        let zoneExplanation = '';
+        switch (pattern.rule) {
+            case 5:
+                zoneExplanation = '<span class="badge sigma-zone-a">Zone A (2σ-3σ)</span> 구간은 중심선(CL)에서 2-시그마와 3-시그마 사이의 영역입니다.';
+                break;
+            case 6:
+                zoneExplanation = '<span class="badge sigma-zone-b">Zone B (1σ-2σ)</span> 구간은 중심선(CL)에서 1-시그마와 2-시그마 사이의 영역입니다.';
+                break;
+            case 7:
+                zoneExplanation = '<span class="badge sigma-zone-c">Zone C (0-1σ)</span> 구간은 중심선(CL)에서 0-시그마와 1-시그마 사이의 영역입니다.';
+                break;
+        }
+        
+        // 패턴 설명 내용 설정
+        patternExplanationEl.innerHTML = `
+            <h5 class="mb-2">Rule ${pattern.rule} 패턴 설명</h5>
+            <p class="mb-1"><strong>${pattern.description}</strong></p>
+            <p class="mb-2 small">위치: ${positions.map(p => `포인트 ${p+1}`).join(', ')}</p>
+            ${zoneExplanation ? `<p class="mb-0">${zoneExplanation}</p>` : ''}
+            <button type="button" class="btn btn-sm btn-outline-secondary mt-2" id="reset-highlight">강조 표시 지우기</button>
+        `;
+        
+        // 강조 표시 지우기 버튼 이벤트
+        document.querySelector('#reset-highlight').addEventListener('click', resetPatternHighlight);
     }
-    
-    // 시그마 구간 설명 준비
-    let zoneExplanation = '';
-    switch (pattern.rule) {
-        case 5:
-            zoneExplanation = '<span class="badge sigma-zone-a">Zone A (2σ-3σ)</span> 구간은 중심선(CL)에서 2-시그마와 3-시그마 사이의 영역입니다.';
-            break;
-        case 6:
-            zoneExplanation = '<span class="badge sigma-zone-b">Zone B (1σ-2σ)</span> 구간은 중심선(CL)에서 1-시그마와 2-시그마 사이의 영역입니다.';
-            break;
-        case 7:
-            zoneExplanation = '<span class="badge sigma-zone-c">Zone C (0-1σ)</span> 구간은 중심선(CL)에서 0-시그마와 1-시그마 사이의 영역입니다.';
-            break;
-    }
-    
-    // 패턴 설명 내용 설정
-    patternExplanationEl.innerHTML = `
-        <h5 class="mb-2">Rule ${pattern.rule} 패턴 설명</h5>
-        <p class="mb-1"><strong>${pattern.description}</strong></p>
-        <p class="mb-2 small">위치: ${positions.map(p => `포인트 ${p+1}`).join(', ')}</p>
-        ${zoneExplanation ? `<p class="mb-0">${zoneExplanation}</p>` : ''}
-        <button type="button" class="btn btn-sm btn-outline-secondary mt-2" id="reset-highlight">강조 표시 지우기</button>
-    `;
-    
-    // 강조 표시 지우기 버튼 이벤트
-    document.querySelector('#reset-highlight').addEventListener('click', resetPatternHighlight);
-}
 
-// 패턴 강조 표시 초기화 함수
-function resetPatternHighlight() {
-    if (!controlChart) return;
-    
-    // 강조 데이터셋 제거
-    controlChart.data.datasets = controlChart.data.datasets.filter(ds => !ds.patternHighlight);
-    
-    // 차트 업데이트
-    controlChart.update();
-    
-    // 패턴 설명 영역 제거
-    const patternExplanationEl = document.querySelector('#pattern-explanation');
-    if (patternExplanationEl) {
-        patternExplanationEl.remove();
+    // 패턴 강조 표시 초기화 함수
+    function resetPatternHighlight() {
+        if (!controlChart) return;
+        
+        // 강조 데이터셋 제거
+        controlChart.data.datasets = controlChart.data.datasets.filter(ds => !ds.patternHighlight);
+        
+        // 차트 업데이트
+        controlChart.update();
+        
+        // 패턴 설명 영역 제거
+        const patternExplanationEl = document.querySelector('#pattern-explanation');
+        if (patternExplanationEl) {
+            patternExplanationEl.remove();
+        }
+        
+        // 테이블에서 선택된 행 강조 제거
+        document.querySelectorAll('.pattern-row').forEach(r => r.classList.remove('table-primary'));
     }
-    
-    // 테이블에서 선택된 행 강조 제거
-    document.querySelectorAll('.pattern-row').forEach(r => r.classList.remove('table-primary'));
-}
     
     // 이벤트 리스너 설정
     function setupEventListeners() {
@@ -1066,7 +1063,7 @@ function resetPatternHighlight() {
             
             // 공정 목록 로드
             if (selectedProductGroupId) {
-                loadProcesses(selectedProductGroupId);
+                fetchProcesses(selectedProductGroupId);
             } else {
                 document.getElementById('process').innerHTML = '<option value="">공정 선택</option>';
                 document.getElementById('process').disabled = true;
@@ -1082,7 +1079,7 @@ function resetPatternHighlight() {
             
             // 타겟 목록 로드
             if (selectedProcessId) {
-                loadTargets(selectedProcessId);
+                fetchTargets(selectedProcessId);
             } else {
                 document.getElementById('target').innerHTML = '<option value="">타겟 선택</option>';
                 document.getElementById('target').disabled = true;
@@ -1102,12 +1099,16 @@ function resetPatternHighlight() {
         // 분석 기간 선택 변경 이벤트
         utils.initDateControls({
             periodSelector: '#analysis-period',
-            containerSelector: '.date-range-container',
+            containerSelector: '#custom-date-container',
             startDateSelector: '#start-date',
             endDateSelector: '#end-date'
         });
     }
     
     // 페이지 로드 시 초기화
-    document.addEventListener('DOMContentLoaded', initSpcPage);
+    $(document).ready(function() {
+        initSpcPage();
+        setupEventListeners();
+        initDateControls();
+    });
 })();

@@ -32,6 +32,29 @@
     }
     
     
+    // 제품군 목록 로드
+    async function loadProductGroups() {
+        try {
+            const productGroups = await api.getProductGroups();
+            
+            if (!productGroups || productGroups.length === 0) {
+                document.getElementById('product-group').innerHTML = '<option value="">제품군 정보가 없습니다.</option>';
+                return;
+            }
+            
+            let options = '<option value="">제품군 선택</option>';
+            productGroups.forEach(productGroup => {
+                options += `<option value="${productGroup.id}">${productGroup.name}</option>`;
+            });
+            
+            document.getElementById('product-group').innerHTML = options;
+            
+        } catch (error) {
+            console.error('제품군 로드 실패:', error);
+            document.getElementById('product-group').innerHTML = '<option value="">제품군 로드 오류</option>';
+        }
+    }
+    
     // 공정 목록 로드
     async function loadProcesses(productGroupId) {
         try {
@@ -114,14 +137,27 @@
             </div>
             `;
             
-            // API 요청 파라미터
-            const params = utils.prepareApiDateParams(
-                $('#analysis-period').val(),
-                $('#start-date').val(),
-                $('#end-date').val()
-            );
+            // API 요청 파라미터 수정
+            const periodType = $('#analysis-period').val();
+            let params;
             
-            // 통계 API 호출
+            if (periodType === 'custom') {
+                params = {
+                    start_date: $('#start-date').val(),
+                    end_date: $('#end-date').val()
+                };
+            } else {
+                // 기간별 days 값 설정
+                const daysMap = {
+                    '7': 7,
+                    '14': 14,
+                    '30': 30,
+                    '90': 90
+                };
+                params = { days: daysMap[periodType] || 30 }; // 기본값 30일
+            }
+
+            // 통계 API 호출 - days 또는 start_date/end_date 전달
             const statsResult = await api.getTargetStatistics(selectedTargetId, params);
             currentStats = statsResult;
             
@@ -568,6 +604,10 @@
         `;
     }
 
-    // 페이지 로드 시 초기화
-    document.addEventListener('DOMContentLoaded', initTrendPage);
+    // 이벤트 리스너 등록
+    $(document).ready(function() {
+        initTrendPage();
+        setupEventListeners();
+        initDateControls();
+    });
 })();
