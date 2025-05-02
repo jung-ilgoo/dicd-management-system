@@ -668,11 +668,8 @@
             // 상세 모달 닫기
             $('#detail-modal').modal('hide');
             
-            // 측정 ID 가져오기
-            const measurementId = document.querySelector('.view-detail[data-id]').dataset.id;
-            
-            // 수정 폼 초기화
-            populateEditForm(measurementId);
+            // 저장된 측정 ID 사용
+            populateEditForm(currentMeasurementId);
         });
 
         // 수정 저장 버튼 클릭 이벤트

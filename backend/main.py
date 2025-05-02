@@ -20,6 +20,11 @@ from backend.routers import report_downloads
 # 벌크 데이터 추가
 from backend.routers import bulk_upload as bulk_upload_router
 
+# 정적 파일 서빙을 위한 import 추가
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+from pathlib import Path
+
 # 데이터베이스 테이블 생성
 models.Base.metadata.create_all(bind=database.engine)
 
@@ -53,8 +58,46 @@ app.include_router(distribution_router.router)
 app.include_router(report_downloads.router)
 app.include_router(bulk_upload_router.router)
 
-@app.get("/")
-async def root():
+# 프론트엔드 파일 경로 설정
+frontend_dir = Path(__file__).parent.parent / "frontend"
+
+app.mount("/css", StaticFiles(directory=str(frontend_dir / "css")), name="css")
+app.mount("/js", StaticFiles(directory=str(frontend_dir / "js")), name="js")
+app.mount("/pages", StaticFiles(directory=str(frontend_dir / "pages")), name="pages")
+
+# API 경로는 이미 /api로 시작하므로 충돌하지 않음
+# 루트 경로 처리
+@app.get("/", response_class=FileResponse)
+async def read_root():
+    return FileResponse(str(frontend_dir / "index.html"))
+
+# HTML 페이지 처리
+@app.get("/{page_name}.html", response_class=FileResponse)
+async def read_page(page_name: str):
+    file_path = frontend_dir / f"{page_name}.html"
+    if file_path.exists():
+        return FileResponse(str(file_path))
+    return FileResponse(str(frontend_dir / "index.html"))
+
+# pages 디렉토리 내의 HTML 파일 처리
+@app.get("/pages/{page_name}.html", response_class=FileResponse)
+async def read_pages(page_name: str):
+    file_path = frontend_dir / "pages" / f"{page_name}.html"
+    if file_path.exists():
+        return FileResponse(str(file_path))
+    return FileResponse(str(frontend_dir / "index.html"))
+
+# 중첩된 경로의 HTML 파일 처리 (예: /pages/analysis/trend.html)
+@app.get("/pages/{folder}/{page_name}.html", response_class=FileResponse)
+async def read_nested_pages(folder: str, page_name: str):
+    file_path = frontend_dir / "pages" / folder / f"{page_name}.html"
+    if file_path.exists():
+        return FileResponse(str(file_path))
+    return FileResponse(str(frontend_dir / "index.html"))
+
+# API 루트 경로 - 기존 코드에 추가됨
+@app.get("/api")
+async def api_root():
     return {"message": "DICD 측정 관리 시스템 API에 오신 것을 환영합니다!"}
 
 if __name__ == "__main__":
